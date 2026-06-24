@@ -1,7 +1,8 @@
 {
   "ServerScriptService/coconut": "Script",
-  "ServerScriptService/Gitgnore": "Script",
+  "ServerScriptService/dudu": "Script",
   "ServerStorage/ModuleScript": "Script",
   "ServerScriptService/Script": "Script",
+  "ServerScriptService/Gitgnore": "Script",
   "ServerScriptService/merg": "Script"
 }
