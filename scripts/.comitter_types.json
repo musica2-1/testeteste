@@ -1,4 +1,5 @@
 {
+  "ServerScriptService/Gitgnore": "Script",
   "ServerStorage/ModuleScript": "Script",
   "ServerScriptService/Script": "Script"
 }
