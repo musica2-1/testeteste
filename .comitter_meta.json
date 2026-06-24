@@ -1,15 +1,8 @@
 {
   "meta_version": 1,
-<<<<<<< HEAD
-<<<<<<< HEAD
-  "commit": "8c17d47a2fcc51ed5904edfecb51fcdc1b5674a7",
-=======
-  "commit": "558b7730a6137cfaf71886e9e5b56c1dc2283196",
->>>>>>> dec9e57 (merge main → main)
-=======
-  "commit": "3f2c3ae8a3891e18e4dd2209b4835cf86b83d604",
->>>>>>> df9760a (merge merg → main)
+  "commit": "851cf5e3a89fad815ccef9532cd5f43283022e14",
   "uids": {
+    "ServerScriptService/merg": "4e4664f8-fafb-45bd-b209-0b75398cbae0",
     "ServerScriptService/Gitgnore": "21b4e427-a22c-4c5c-8a05-8d57b13a2c95",
     "ServerStorage/ModuleScript": "a200a52f-ecca-4a03-a3f1-3f74de8c9036",
     "ServerScriptService/Script": "33b62791-6ed2-4420-8f95-3aaddd03d572"
