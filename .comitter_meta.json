@@ -1,15 +1,14 @@
 {
   "meta_version": 1,
-  "commit": "96ed9caaf3ff754cc50801b147e80350ee9751f8",
+  "commit": "bdc85490d27b8243c07aa182a1e589a60c85f04f",
   "uids": {
+    "ServerScriptService/Gitgnore": "21b4e427-a22c-4c5c-8a05-8d57b13a2c95",
     "StarterPlayer/StarterPlayerScripts/PlayerModule/ControlModule": "0093fe88-e189-40a0-91aa-b8aa836fe815",
     "ServerStorage/ModuleScript": "a200a52f-ecca-4a03-a3f1-3f74de8c9036",
-    "StarterPlayer/StarterPlayerScripts/PlayerModule/CameraModule/BaseCamera": "adc4c546-7a57-4d0b-a000-5069fd2ed0d9",
-    "StarterPlayer/StarterPlayerScripts/PlayerModule/ControlModule/Gamepad": "ab99615b-34a9-47ac-9f48-0b32b051e4b9",
-    "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "4f8633f9-22e4-4129-9112-ed954ac98e63",
-    "ServerScriptService/Gitgnore": "21b4e427-a22c-4c5c-8a05-8d57b13a2c95",
     "StarterPlayer/StarterPlayerScripts/PlayerModule/CameraModule/VehicleCamera": "b0ef9ee6-bf94-422d-aa11-b7b9de3e5ffc",
+    "StarterPlayer/StarterPlayerScripts/PlayerModule/CameraModule/BaseCamera": "adc4c546-7a57-4d0b-a000-5069fd2ed0d9",
     "StarterPlayer/StarterPlayerScripts/PlayerModule/CommonUtils/FlagUtil": "226d16f9-3d1e-450b-b59b-22f979b943df",
-    "ServerScriptService/Lucas gorod": "73d47b51-ebcc-4a22-baf9-e6f95354f768"
+    "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "4f8633f9-22e4-4129-9112-ed954ac98e63",
+    "StarterPlayer/StarterPlayerScripts/PlayerModule/ControlModule/Gamepad": "ab99615b-34a9-47ac-9f48-0b32b051e4b9"
   }
 }
