@@ -3,6 +3,7 @@
   "ServerScriptService/dudu": "Script",
   "ServerStorage/ModuleScript": "Script",
   "ServerScriptService/Script": "Script",
+  "ServerScriptService/bernardo": "Script",
   "ServerScriptService/Gitgnore": "Script",
   "ServerScriptService/merg": "Script"
 }
