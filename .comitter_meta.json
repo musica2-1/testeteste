@@ -1,11 +1,12 @@
 {
   "meta_version": 1,
-  "commit": "1d9c5464823041439ceed6fb902640856ffc093b",
+  "commit": "c66bc152b544cbd6f13edb3498471940faa27072",
   "uids": {
     "ServerScriptService/coconut": "0da0c686-c4eb-4830-9130-4d8dddfaa02a",
     "ServerScriptService/dudu": "ad815f49-beb4-42dc-b569-7724e6366935",
     "ServerStorage/ModuleScript": "a200a52f-ecca-4a03-a3f1-3f74de8c9036",
     "ServerScriptService/Script": "33b62791-6ed2-4420-8f95-3aaddd03d572",
+    "ServerScriptService/bernardo": "e21fe690-6ddf-423d-8f25-2ca58c4b9219",
     "ServerScriptService/Gitgnore": "21b4e427-a22c-4c5c-8a05-8d57b13a2c95",
     "ServerScriptService/merg": "4e4664f8-fafb-45bd-b209-0b75398cbae0"
   }
