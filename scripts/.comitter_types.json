@@ -1,11 +1,10 @@
 {
+  "ServerScriptService/Gitgnore": "Script",
   "StarterPlayer/StarterPlayerScripts/PlayerModule/ControlModule": "ModuleScript",
   "ServerStorage/ModuleScript": "Script",
-  "StarterPlayer/StarterPlayerScripts/PlayerModule/CameraModule/BaseCamera": "ModuleScript",
-  "StarterPlayer/StarterPlayerScripts/PlayerModule/ControlModule/Gamepad": "ModuleScript",
-  "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "ModuleScript",
-  "ServerScriptService/Gitgnore": "Script",
   "StarterPlayer/StarterPlayerScripts/PlayerModule/CameraModule/VehicleCamera": "ModuleScript",
+  "StarterPlayer/StarterPlayerScripts/PlayerModule/CameraModule/BaseCamera": "ModuleScript",
   "StarterPlayer/StarterPlayerScripts/PlayerModule/CommonUtils/FlagUtil": "ModuleScript",
-  "ServerScriptService/Lucas gorod": "Script"
+  "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "ModuleScript",
+  "StarterPlayer/StarterPlayerScripts/PlayerModule/ControlModule/Gamepad": "ModuleScript"
 }
