@@ -1,5 +1,6 @@
 # Changelog
 
+- **acd220c** (2026-06-26): save
 - **c66bc15** (2026-06-26): save
 - **1d9c546** (2026-06-24): save
 - **74c5754** (2026-06-24): merge main → branches/2.0-merg-todas-ne-bro
