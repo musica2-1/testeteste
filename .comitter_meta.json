@@ -1,13 +1,19 @@
 {
   "meta_version": 1,
-  "commit": "acd220c9527c137eb30ce34d7a5345882b7a755c",
+  "commit": "a52a3d324e3b3cee5fcc748f2aa0bcac467cc208",
   "uids": {
+    "StarterPlayer/StarterPlayerScripts/PlayerModule/ControlModule": "0093fe88-e189-40a0-91aa-b8aa836fe815",
+    "ServerStorage/ModuleScript": "a200a52f-ecca-4a03-a3f1-3f74de8c9036",
+    "ServerScriptService/merg": "4e4664f8-fafb-45bd-b209-0b75398cbae0",
+    "StarterPlayer/StarterPlayerScripts/PlayerModule/CameraModule/BaseCamera": "adc4c546-7a57-4d0b-a000-5069fd2ed0d9",
+    "StarterPlayer/StarterPlayerScripts/PlayerModule/ControlModule/Gamepad": "ab99615b-34a9-47ac-9f48-0b32b051e4b9",
+    "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "4f8633f9-22e4-4129-9112-ed954ac98e63",
     "ServerScriptService/coconut": "0da0c686-c4eb-4830-9130-4d8dddfaa02a",
     "ServerScriptService/dudu": "ad815f49-beb4-42dc-b569-7724e6366935",
-    "ServerStorage/ModuleScript": "a200a52f-ecca-4a03-a3f1-3f74de8c9036",
     "ServerScriptService/Script": "33b62791-6ed2-4420-8f95-3aaddd03d572",
     "ServerScriptService/bernardo": "e21fe690-6ddf-423d-8f25-2ca58c4b9219",
+    "StarterPlayer/StarterPlayerScripts/PlayerModule/CommonUtils/FlagUtil": "226d16f9-3d1e-450b-b59b-22f979b943df",
     "ServerScriptService/Gitgnore": "21b4e427-a22c-4c5c-8a05-8d57b13a2c95",
-    "ServerScriptService/merg": "4e4664f8-fafb-45bd-b209-0b75398cbae0"
+    "StarterPlayer/StarterPlayerScripts/PlayerModule/CameraModule/VehicleCamera": "b0ef9ee6-bf94-422d-aa11-b7b9de3e5ffc"
   }
 }
