@@ -1,15 +1,10 @@
 {
-  "StarterPlayer/StarterPlayerScripts/PlayerModule/ControlModule": "ModuleScript",
+  "ServerScriptService/coconut": "Script",
+  "ServerScriptService/Gitgnore": "Script",
   "ServerStorage/ModuleScript": "Script",
   "ServerScriptService/merg": "Script",
-  "StarterPlayer/StarterPlayerScripts/PlayerModule/CameraModule/BaseCamera": "ModuleScript",
-  "StarterPlayer/StarterPlayerScripts/PlayerModule/ControlModule/Gamepad": "ModuleScript",
-  "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "ModuleScript",
-  "ServerScriptService/coconut": "Script",
-  "ServerScriptService/dudu": "Script",
-  "ServerScriptService/Script": "Script",
   "ServerScriptService/bernardo": "Script",
-  "StarterPlayer/StarterPlayerScripts/PlayerModule/CommonUtils/FlagUtil": "ModuleScript",
-  "ServerScriptService/Gitgnore": "Script",
-  "StarterPlayer/StarterPlayerScripts/PlayerModule/CameraModule/VehicleCamera": "ModuleScript"
+  "ServerScriptService/Script": "Script",
+  "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "ModuleScript",
+  "ServerScriptService/dudu": "Script"
 }
