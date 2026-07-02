@@ -7,13 +7,12 @@ local Config = {}
 
 Config.PROXY_URL = "http://127.0.0.1:3016"
 Config.PLUGIN_NAME = "Comitter"
-Config.PLUGIN_VERSION = "0.1.0"
+Config.PLUGIN_VERSION = "0.8.0"
 Config.COMMIT_TYPES = {"feat", "fix", "chore", "refactor", "docs", "test", "style", "perf"}
 
 
 -- RPC
 -- RPC.lua — Cliente HTTP pro proxy/daemon
-local HttpService = game:GetService("HttpService")
 local PROXY = "http://127.0.0.1:3016"
 
 local RPC = {}
@@ -724,7 +723,7 @@ function GUI:getMsg() return msgBox and msgBox.Text or "save" end
 
 
 -- init
--- init.lua — Comitter v0.7.0
+-- init.lua — Comitter v0.8.0
 -- Ordem CRÍTICA: helpers → callbacks → GUI:init()
 
 local state = { online = false, branch = "main", place = "MeuJogo", branches = {}, staged = {}, config = {}, currentHash = "", dirty = false }
@@ -1000,16 +999,13 @@ local function doCommit()
 		state.dirty = false
 		state.staged = all
 		GUI:setFiles(stagedList())
-		-- Diferencia novos (+) de modificados (~)
-		local diffText = "Commit: " .. short .. "\n"
-		for key, info in pairs(all) do
-			if info.base == "" then
-				diffText = diffText .. "+ " .. key .. "\n"
-			else
-				diffText = diffText .. "~ " .. key .. "\n"
-			end
+		-- Diff real vindo do daemon (git diff --cached, capturado antes do commit)
+		local diffText = r.diff
+		if diffText and diffText ~= "" then
+			GUI:setDiff(diffText)
+		else
+			GUI:setDiff("(sem mudanças de conteúdo detectadas em " .. short .. ")")
 		end
-		GUI:setDiff(diffText)
 		task.wait(0.5)
 		doPush()
 	else
@@ -1522,6 +1518,25 @@ GUI.OnHistory = function()
 	local histBranch = state.branch
 	local histPopup, histList, branchBtn
 
+	-- Busca e exibe o diff real de um commit específico no painel principal
+	local function showCommitDiff(c)
+		local short = c.shortHash or c.hash:sub(1, 7)
+		log("Loading diff for " .. short .. "...")
+		local dr = RPC:send("commit_diff", {place = state.place, branch = histBranch, hash = c.hash})
+		if dr.success then
+			local diffText = dr.diff
+			if diffText and diffText ~= "" then
+				GUI:setDiff(diffText)
+			else
+				GUI:setDiff("(sem mudanças de conteúdo em " .. short .. ")")
+			end
+			log("✓ Diff carregado: " .. short .. " " .. (c.message or ""))
+			if histPopup then histPopup:Destroy() end
+		else
+			log("✗ Diff: " .. (dr.error or "failed"))
+		end
+	end
+
 	local function refreshHistory()
 		local r = RPC:send("commits", {place = state.place, branch = histBranch, max = 30})
 		if not r.success then return end
@@ -1548,6 +1563,18 @@ GUI.OnHistory = function()
 			local authorL = Instance.new("TextLabel"); authorL.Size = UDim2.new(1, -8, 0, 12); authorL.Position = UDim2.new(0, 4, 0, 32)
 			authorL.BackgroundTransparency = 1; authorL.TextColor3 = Color3.fromRGB(140, 140, 150); authorL.Font = Enum.Font.Gotham
 			authorL.TextSize = 9; authorL.Text = c.author or ""; authorL.TextXAlignment = Enum.TextXAlignment.Left; authorL.Parent = row
+
+			-- Overlay clicável (linha inteira) para abrir o diff real do commit
+			local clickBtn = Instance.new("TextButton")
+			clickBtn.Size = UDim2.new(1, 0, 1, 0)
+			clickBtn.BackgroundTransparency = 1
+			clickBtn.Text = ""
+			clickBtn.AutoButtonColor = false
+			clickBtn.ZIndex = 2
+			clickBtn.Parent = row
+			clickBtn.MouseEnter:Connect(function() row.BackgroundColor3 = Color3.fromRGB(45, 45, 52) end)
+			clickBtn.MouseLeave:Connect(function() row.BackgroundColor3 = Color3.fromRGB(35, 35, 40) end)
+			clickBtn.MouseButton1Click:Connect(function() showCommitDiff(c) end)
 		end
 		histList.CanvasSize = UDim2.new(0, 0, 0, #r.commits * 50 + 4)
 	end
@@ -1567,6 +1594,9 @@ GUI.OnHistory = function()
 	branchBtn = Instance.new("TextButton"); branchBtn.Size = UDim2.new(0, 120, 1, 0); branchBtn.Position = UDim2.new(0, 8, 0, 0)
 	branchBtn.BackgroundTransparency = 1; branchBtn.TextColor3 = Color3.fromRGB(220, 220, 240); branchBtn.Font = Enum.Font.GothamBold
 	branchBtn.TextSize = 13; branchBtn.TextXAlignment = Enum.TextXAlignment.Left; branchBtn.Text = histBranch; branchBtn.Parent = hd
+	local hint = Instance.new("TextLabel"); hint.Size = UDim2.new(0, 200, 1, 0); hint.Position = UDim2.new(0, 132, 0, 0)
+	hint.BackgroundTransparency = 1; hint.TextColor3 = Color3.fromRGB(130, 130, 145); hint.Font = Enum.Font.Gotham
+	hint.TextSize = 9; hint.TextXAlignment = Enum.TextXAlignment.Left; hint.Text = "clique num commit p/ ver diff"; hint.Parent = hd
 	local hx = Instance.new("TextButton"); hx.Size = UDim2.new(0, 24, 0, 24); hx.Position = UDim2.new(1, -26, 0, 2)
 	hx.BackgroundColor3 = Color3.fromRGB(80, 30, 30); hx.TextColor3 = Color3.fromRGB(255, 130, 130); hx.Font = Enum.Font.Code
 	hx.TextSize = 14; hx.Text = "X"; hx.Parent = hd
@@ -1728,7 +1758,7 @@ if state.online then
 		state.staged = scanScripts()
 		refreshUI()
 	end
-	log("Comitter v0.7.0 ready")
+	log("Comitter v0.8.0 ready")
 else
-	log("Comitter v0.7.0 — Offline. Rode o daemon: fuser -k 3017/tcp; cd ~/Documentos/Comitter && python3 daemon/server.py &")
+	log("Comitter v0.8.0 — Offline. Rode o daemon: fuser -k 3017/tcp; cd ~/Documentos/Comitter && python3 daemon/server.py &")
 end
