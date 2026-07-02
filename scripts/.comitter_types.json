@@ -1,10 +1,9 @@
 {
   "ServerScriptService/coconut": "Script",
-  "ServerScriptService/Gitgnore": "Script",
+  "ServerScriptService/dudu": "Script",
   "ServerStorage/ModuleScript": "Script",
-  "ServerScriptService/merg": "Script",
-  "ServerScriptService/bernardo": "Script",
   "ServerScriptService/Script": "Script",
+  "ServerScriptService/bernardo": "Script",
   "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "ModuleScript",
-  "ServerScriptService/dudu": "Script"
+  "ServerScriptService/Gitgnore": "Script"
 }
