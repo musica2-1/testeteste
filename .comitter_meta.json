@@ -1,6 +1,6 @@
 {
   "meta_version": 1,
-  "commit": "a506b6e3b07ceb4d7a8a83f9720fbed467c4f315",
+  "commit": "e97669a948edb4ebb8fe505f80861ea864296358",
   "uids": {
     "StarterGui/LocalScript": "1cc2ed7d-0bc9-4ab2-a9ab-7a4492a14d02",
     "ServerScriptService/merg": "4e4664f8-fafb-45bd-b209-0b75398cbae0",
@@ -13,5 +13,6 @@
     "ServerScriptService/dudu": "ad815f49-beb4-42dc-b569-7724e6366935",
     "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds": "085f2b03-43d3-4b4e-b5ea-e97823f13deb",
     "ServerScriptService/Lucas gorod": "b01dc07c-8a47-4059-9707-94910fce5a09"
-  }
+  },
+  "classes": {}
 }
