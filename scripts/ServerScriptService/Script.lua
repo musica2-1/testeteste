@@ -7,12 +7,13 @@ local Config = {}
 
 Config.PROXY_URL = "http://127.0.0.1:3016"
 Config.PLUGIN_NAME = "Comitter"
-Config.PLUGIN_VERSION = "0.8.0"
+Config.PLUGIN_VERSION = "0.1.0"
 Config.COMMIT_TYPES = {"feat", "fix", "chore", "refactor", "docs", "test", "style", "perf"}
 
 
 -- RPC
 -- RPC.lua — Cliente HTTP pro proxy/daemon
+local HttpService = game:GetService("HttpService")
 local PROXY = "http://127.0.0.1:3016"
 
 local RPC = {}
@@ -45,11 +46,7 @@ function RPC:send(action, params)
 	end
 
 	print("[RPC] resp: " .. resp:sub(1, 150))
-	local decodeOk, data = pcall(function() return HttpService:JSONDecode(resp) end)
-	if not decodeOk then
-		print("[RPC] resposta inválida: " .. tostring(data))
-		return {success = false, error = "invalid_json_response"}
-	end
+	local data = HttpService:JSONDecode(resp)
 	return data
 end
 
@@ -509,9 +506,6 @@ function GUI:init()
 	cpBtn.AutoButtonColor = false; cpBtn.BorderSizePixel = 0
 	rnd(cpBtn, 3); cpBtn.Parent = right
 	addHover(cpBtn, Color3.fromRGB(48, 48, 55), Color3.fromRGB(58, 58, 65))
-	cpBtn.MouseButton1Click:Connect(function()
-		if GUI.OnCherryPick then GUI.OnCherryPick() end
-	end)
 
 	fileList = Instance.new("ScrollingFrame")
 	fileList.Size = UDim2.new(1, -12, 0, 110); fileList.Position = UDim2.new(0, 6, 0, 28)
@@ -723,7 +717,7 @@ function GUI:getMsg() return msgBox and msgBox.Text or "save" end
 
 
 -- init
--- init.lua — Comitter v0.8.0
+-- init.lua — Comitter v0.7.0
 -- Ordem CRÍTICA: helpers → callbacks → GUI:init()
 
 local state = { online = false, branch = "main", place = "MeuJogo", branches = {}, staged = {}, config = {}, currentHash = "", dirty = false }
@@ -746,52 +740,29 @@ local function setBaseHash(inst, hash)
 	inst:SetAttribute("Comitter_base", hash or "")
 end
 
-local function scriptNameFromFilename(name)
-	return name:gsub("%.lua$", ""):gsub("%.server$", ""):gsub("%.client$", "")
-end
-
--- Ignorar scripts padrão do Roblox para evitar poluição no diff/commit
-local IGNORED_PATHS = {
-	["StarterPlayer/StarterPlayerScripts/PlayerModule"] = true,
-	["StarterPlayer/StarterPlayerScripts/PlayerScriptsLoader"] = true,
-	-- Descomente se RbxCharacterSounds também aparecer:
-	-- ["StarterPlayer/StarterCharacterScripts/RbxCharacterSounds"] = true,
-}
-
-local function isIgnored(path)
-	for prefix in pairs(IGNORED_PATHS) do
-		if path == prefix or path:sub(1, #prefix + 1) == prefix .. "/" then
-			return true
-		end
-	end
-	return false
-end
-
 local function scanScripts()
 	local files = {}
 	local function scan(parent, prefix)
 		for _, child in ipairs(parent:GetChildren()) do
 			if child:IsA("LuaSourceContainer") then
 				local key = prefix .. "/" .. child.Name
-				if not isIgnored(key) then
-					files[key] = {
-						source = child.Source,
-						obj = child,
-						path = key,
-						uid = ensureUID(child),
-						base = getBaseHash(child),
-						class = child.ClassName,
-					}
-					if not child:GetAttribute("Comitter_dirtyConnected") then
-						child:SetAttribute("Comitter_dirtyConnected", true)
-						local ok, sig = pcall(function()
-							return child:GetPropertyChangedSignal("Source")
+				files[key] = {
+					source = child.Source,
+					obj = child,
+					path = key,
+					uid = ensureUID(child),
+					base = getBaseHash(child),
+					class = child.ClassName,
+				}
+				if not child:GetAttribute("Comitter_dirtyConnected") then
+					child:SetAttribute("Comitter_dirtyConnected", true)
+					local ok, sig = pcall(function()
+						return child:GetPropertyChangedSignal("Source")
+					end)
+					if ok and sig then
+						sig:Connect(function()
+							state.dirty = true
 						end)
-						if ok and sig then
-							sig:Connect(function()
-								state.dirty = true
-							end)
-						end
 					end
 				end
 			end
@@ -814,9 +785,30 @@ local function scanScripts()
 	return files
 end
 
+-- Scripts built-in do Roblox que nunca devem ser versionados
+local BUILTIN_SCRIPTS = {
+	["Animate"] = true,
+	["Health"] = true,
+	["Sound"] = true,
+	["RbxCharacterSound"] = true,
+	["Chat"] = true,
+	["ClientChat"] = true,
+	["ChatServiceRunner"] = true,
+	["BubbleChat"] = true,
+	["Emotes"] = true,
+	["Camera"] = true,
+}
+
+local function isBuiltin(path)
+	local name = path:match("/([^/]+)$")
+	return name and BUILTIN_SCRIPTS[name]
+end
+
 local function stagedList()
 	local t = {}
-	for k in pairs(state.staged) do table.insert(t, k) end
+	for k in pairs(state.staged) do
+		if not isBuiltin(k) then table.insert(t, k) end
+	end
 	table.sort(t)
 	return t
 end
@@ -841,26 +833,35 @@ end
 -- ===== INJECT SCRIPTS INTO STUDIO =====
 local SCRIPT_SERVICES = {"ServerScriptService", "ServerStorage", "ReplicatedStorage", "StarterGui", "StarterPack"}
 
-local function pruneEmptyFolders(root)
-	for _, child in ipairs(root:GetChildren()) do
-		if child:IsA("Folder") then
-			pruneEmptyFolders(child)
-			if #child:GetChildren() == 0 then
-				child:Destroy()
+local function clearStudioScripts()
+	for _, svcName in ipairs(SCRIPT_SERVICES) do
+		local svc = game:GetService(svcName)
+		if svc then
+			for _, child in ipairs(svc:GetChildren()) do
+				if child:IsA("LuaSourceContainer") then
+					child:Destroy()
+				end
+			end
+		end
+	end
+	-- Clear StarterPlayer sub-services
+	local sp = game:GetService("StarterPlayer")
+	if sp then
+		for _, subName in ipairs({"StarterPlayerScripts", "StarterCharacterScripts"}) do
+			local sub = sp:FindFirstChild(subName)
+			if sub then
+				for _, child in ipairs(sub:GetChildren()) do
+					if child:IsA("LuaSourceContainer") then
+						child:Destroy()
+					end
+				end
 			end
 		end
 	end
 end
 
 local function injectScripts(fileMap, uids, commitHash, classes)
-	-- Destrói só o que não existe mais na branch alvo (recursivo, cobre subpastas)
-	local current = scanScripts()
-	for path, info in pairs(current) do
-		if not fileMap[path] then
-			info.obj:Destroy()
-		end
-	end
-
+	clearStudioScripts()
 	local n = 0
 	for fp, src in pairs(fileMap) do
 		local svcName = fp:match("^([^/]+)")
@@ -876,16 +877,9 @@ local function injectScripts(fileMap, uids, commitHash, classes)
 					cur = f
 				end
 				if #parts > 0 then
-					local sname = scriptNameFromFilename(parts[#parts])
-					local classType = (classes and classes[fp]) or "Script"
+					local sname = parts[#parts]:gsub("%.lua$", ""):gsub("%.server$", ""):gsub("%.client$", "")
 					local existing = cur:FindFirstChild(sname)
-
-					-- Classe mudou (ex: Script virou ModuleScript) → recria
-					if existing and existing.ClassName ~= classType then
-						existing:Destroy()
-						existing = nil
-					end
-
+					local classType = (classes and classes[fp]) or "Script"
 					if not existing then
 						if classType == "LocalScript" then existing = Instance.new("LocalScript")
 						elseif classType == "ModuleScript" then existing = Instance.new("ModuleScript")
@@ -893,15 +887,14 @@ local function injectScripts(fileMap, uids, commitHash, classes)
 						end
 						existing.Name = sname; existing.Parent = cur
 					end
-
-					if existing.Source ~= src then
-						existing.Source = src
-					end
+					existing.Source = src
+					-- Restore UID if we have one for this path
 					if uids and uids[fp] then
 						existing:SetAttribute("Comitter_uid", uids[fp])
 					else
 						ensureUID(existing)
 					end
+					-- Update base hash so safety checks work
 					if commitHash and commitHash ~= "" then
 						setBaseHash(existing, commitHash)
 					end
@@ -910,19 +903,6 @@ local function injectScripts(fileMap, uids, commitHash, classes)
 			end
 		end
 	end
-
-	for _, svcName in ipairs(SCRIPT_SERVICES) do
-		local svc = game:GetService(svcName)
-		if svc then pruneEmptyFolders(svc) end
-	end
-	local sp = game:GetService("StarterPlayer")
-	if sp then
-		for _, subName in ipairs({"StarterPlayerScripts", "StarterCharacterScripts"}) do
-			local sub = sp:FindFirstChild(subName)
-			if sub then pruneEmptyFolders(sub) end
-		end
-	end
-
 	return n
 end
 
@@ -973,10 +953,14 @@ local function doCommit()
 	local uids = {}
 	local classes = {}
 	for key, info in pairs(all) do
-		payload[key] = info.source
-		uids[key] = info.uid
-		classes[key] = info.class or "Script"
-		count = count + 1
+		if isBuiltin(key) then
+			-- skip Roblox built-in scripts
+		else
+			payload[key] = info.source
+			uids[key] = info.uid
+			classes[key] = info.class or "Script"
+			count = count + 1
+		end
 	end
 	if count == 0 then
 		log("No scripts found")
@@ -993,19 +977,17 @@ local function doCommit()
 		log("✓ " .. short .. " " .. msg)
 		-- Update Comitter_base on all committed instances
 		for key, info in pairs(all) do
-			setBaseHash(info.obj, r.hash)
+			if not isBuiltin(key) then setBaseHash(info.obj, r.hash) end
 		end
 		state.currentHash = r.hash
 		state.dirty = false
 		state.staged = all
 		GUI:setFiles(stagedList())
-		-- Diff real vindo do daemon (git diff --cached, capturado antes do commit)
-		local diffText = r.diff
-		if diffText and diffText ~= "" then
-			GUI:setDiff(diffText)
-		else
-			GUI:setDiff("(sem mudanças de conteúdo detectadas em " .. short .. ")")
+		local diffText = "Commit: " .. short .. "\n"
+		for key in pairs(payload) do
+			diffText = diffText .. "+ " .. key .. "\n"
 		end
+		GUI:setDiff(diffText)
 		task.wait(0.5)
 		doPush()
 	else
@@ -1015,10 +997,6 @@ end
 
 local function doPull()
 	state.place = GUI:getName()
-	if state.dirty then
-		log("⚠ Mudanças não commitadas — commit antes de dar pull, ou serão perdidas")
-		return
-	end
 	log("Pulling " .. state.branch .. "...")
 	local r = RPC:send("pull", {place = state.place, branch = state.branch})
 	if r.success then
@@ -1126,7 +1104,7 @@ local function selectBranch(name, force)
 									cur = f
 								end
 								if #parts > 0 then
-									local sname = scriptNameFromFilename(parts[#parts])
+									local sname = parts[#parts]:gsub("%.lua$", ""):gsub("%.server$", ""):gsub("%.client$", "")
 									local existing = cur:FindFirstChild(sname)
 									local classType = (r.classes and r.classes[fp]) or "Script"
 									if not existing then
@@ -1475,7 +1453,7 @@ GUI.OnCherryPick = function()
 								cur = f
 							end
 							if #parts > 0 then
-								local sname = scriptNameFromFilename(parts[#parts])
+								local sname = parts[#parts]:gsub("%.lua$", "")
 								local existing = cur:FindFirstChild(sname)
 								local classType = cp.class or "Script"
 								if not existing then
@@ -1489,7 +1467,6 @@ GUI.OnCherryPick = function()
 								if cp.uid and cp.uid ~= "" then
 									existing:SetAttribute("Comitter_uid", cp.uid)
 								end
-								state.dirty = true
 								log("✓ Cherry-picked " .. p .. " from " .. branchName)
 							end
 						end
@@ -1518,25 +1495,6 @@ GUI.OnHistory = function()
 	local histBranch = state.branch
 	local histPopup, histList, branchBtn
 
-	-- Busca e exibe o diff real de um commit específico no painel principal
-	local function showCommitDiff(c)
-		local short = c.shortHash or c.hash:sub(1, 7)
-		log("Loading diff for " .. short .. "...")
-		local dr = RPC:send("commit_diff", {place = state.place, branch = histBranch, hash = c.hash})
-		if dr.success then
-			local diffText = dr.diff
-			if diffText and diffText ~= "" then
-				GUI:setDiff(diffText)
-			else
-				GUI:setDiff("(sem mudanças de conteúdo em " .. short .. ")")
-			end
-			log("✓ Diff carregado: " .. short .. " " .. (c.message or ""))
-			if histPopup then histPopup:Destroy() end
-		else
-			log("✗ Diff: " .. (dr.error or "failed"))
-		end
-	end
-
 	local function refreshHistory()
 		local r = RPC:send("commits", {place = state.place, branch = histBranch, max = 30})
 		if not r.success then return end
@@ -1563,18 +1521,6 @@ GUI.OnHistory = function()
 			local authorL = Instance.new("TextLabel"); authorL.Size = UDim2.new(1, -8, 0, 12); authorL.Position = UDim2.new(0, 4, 0, 32)
 			authorL.BackgroundTransparency = 1; authorL.TextColor3 = Color3.fromRGB(140, 140, 150); authorL.Font = Enum.Font.Gotham
 			authorL.TextSize = 9; authorL.Text = c.author or ""; authorL.TextXAlignment = Enum.TextXAlignment.Left; authorL.Parent = row
-
-			-- Overlay clicável (linha inteira) para abrir o diff real do commit
-			local clickBtn = Instance.new("TextButton")
-			clickBtn.Size = UDim2.new(1, 0, 1, 0)
-			clickBtn.BackgroundTransparency = 1
-			clickBtn.Text = ""
-			clickBtn.AutoButtonColor = false
-			clickBtn.ZIndex = 2
-			clickBtn.Parent = row
-			clickBtn.MouseEnter:Connect(function() row.BackgroundColor3 = Color3.fromRGB(45, 45, 52) end)
-			clickBtn.MouseLeave:Connect(function() row.BackgroundColor3 = Color3.fromRGB(35, 35, 40) end)
-			clickBtn.MouseButton1Click:Connect(function() showCommitDiff(c) end)
 		end
 		histList.CanvasSize = UDim2.new(0, 0, 0, #r.commits * 50 + 4)
 	end
@@ -1594,9 +1540,6 @@ GUI.OnHistory = function()
 	branchBtn = Instance.new("TextButton"); branchBtn.Size = UDim2.new(0, 120, 1, 0); branchBtn.Position = UDim2.new(0, 8, 0, 0)
 	branchBtn.BackgroundTransparency = 1; branchBtn.TextColor3 = Color3.fromRGB(220, 220, 240); branchBtn.Font = Enum.Font.GothamBold
 	branchBtn.TextSize = 13; branchBtn.TextXAlignment = Enum.TextXAlignment.Left; branchBtn.Text = histBranch; branchBtn.Parent = hd
-	local hint = Instance.new("TextLabel"); hint.Size = UDim2.new(0, 200, 1, 0); hint.Position = UDim2.new(0, 132, 0, 0)
-	hint.BackgroundTransparency = 1; hint.TextColor3 = Color3.fromRGB(130, 130, 145); hint.Font = Enum.Font.Gotham
-	hint.TextSize = 9; hint.TextXAlignment = Enum.TextXAlignment.Left; hint.Text = "clique num commit p/ ver diff"; hint.Parent = hd
 	local hx = Instance.new("TextButton"); hx.Size = UDim2.new(0, 24, 0, 24); hx.Position = UDim2.new(1, -26, 0, 2)
 	hx.BackgroundColor3 = Color3.fromRGB(80, 30, 30); hx.TextColor3 = Color3.fromRGB(255, 130, 130); hx.Font = Enum.Font.Code
 	hx.TextSize = 14; hx.Text = "X"; hx.Parent = hd
@@ -1758,7 +1701,7 @@ if state.online then
 		state.staged = scanScripts()
 		refreshUI()
 	end
-	log("Comitter v0.8.0 ready")
+	log("Comitter v0.7.0 ready")
 else
-	log("Comitter v0.8.0 — Offline. Rode o daemon: fuser -k 3017/tcp; cd ~/Documentos/Comitter && python3 daemon/server.py &")
+	log("Comitter v0.7.0 — Offline. Rode o daemon: fuser -k 3017/tcp; cd ~/Documentos/Comitter && python3 daemon/server.py &")
 end
