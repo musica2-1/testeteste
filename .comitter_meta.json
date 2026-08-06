@@ -1,9 +1,6 @@
 {
   "classes": {},
-  "commit": "a0607a5ce96e482116ed5c90dacdc183779fe82e",
+  "commit": "afe9aba7ffd277f7202a8eef184200e55122b04c",
   "meta_version": 1,
-  "uids": {
-    "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "4f8633f9-22e4-4129-9112-ed954ac98e63",
-    "Workspace/Part/Script": "cf388978-59d0-458e-88de-fc9957947ea9"
-  }
+  "uids": {}
 }
