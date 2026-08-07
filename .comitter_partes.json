@@ -11,5 +11,28 @@
       1,
       2
     ]
+  },
+  "Part": {
+    "canCollide": true,
+    "anchored": false,
+    "transparency": 0,
+    "brickColor": 194,
+    "position": [
+      1.9000000953674316,
+      7.000003814697266,
+      -16.75
+    ],
+    "orientation": [
+      0,
+      0,
+      0
+    ],
+    "material": "Plastic",
+    "className": "Part",
+    "size": [
+      10.399999618530273,
+      1,
+      10.90000057220459
+    ]
   }
 }
