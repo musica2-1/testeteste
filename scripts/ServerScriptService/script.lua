@@ -1581,8 +1581,9 @@ GUI.OnScanConfig = function()
 	refreshToggles()
 end
 GUI.OnCherryPick = function()
+	log("Cherry-pick opened")
 	local sg = GUI.widget and GUI.widget.Parent
-	if not sg then return end
+	if not sg then log("Cherry-pick: no sg"); return end
 	local branchNames = {}
 	for _, b in ipairs(state.branches) do
 		if b.name ~= state.branch then table.insert(branchNames, b.name) end
