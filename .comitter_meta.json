@@ -1,6 +1,6 @@
 {
   "classes": {},
-  "commit": "8990cc6105d5cc3ae4b4adf9e4eb77d02a1716cf",
+  "commit": "0a073c675257b1b84b83d2902a085108c1cda01f",
   "meta_version": 1,
   "uids": {
     "ServerScriptService/Gitgnore": "21b4e427-a22c-4c5c-8a05-8d57b13a2c95",
@@ -10,6 +10,7 @@
     "ServerScriptService/dudu": "ad815f49-beb4-42dc-b569-7724e6366935",
     "ServerScriptService/merg": "4e4664f8-fafb-45bd-b209-0b75398cbae0",
     "ServerStorage/ModuleScript": "a200a52f-ecca-4a03-a3f1-3f74de8c9036",
-    "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "4f8633f9-22e4-4129-9112-ed954ac98e63"
+    "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "4f8633f9-22e4-4129-9112-ed954ac98e63",
+    "Workspace/Part/Script": "cc7058b7-91ca-481e-9556-6c25ac9e2c81"
   }
 }
