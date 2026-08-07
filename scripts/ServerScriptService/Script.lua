@@ -812,12 +812,13 @@ local function scanScripts()
 		for _, child in ipairs(parent:GetChildren()) do
 			if child:IsA("BasePart") or child:IsA("Model") then
 				if child:GetAttribute("Comitter_track") then
-					-- Collect Part properties (pcall-safe)
 					local props = { className = child.ClassName }
 					local ok
-					ok, props.position = pcall(function() local p = child.Position; return {p.X, p.Y, p.Z} end)
+					-- Global position and orientation
+					local cf = child:GetPivot()
+					ok, props.position = pcall(function() local p = cf.Position; return {p.X, p.Y, p.Z} end)
+					ok, props.orientation = pcall(function() local o = cf:ToOrientation(); return {o.X, o.Y, o.Z} end)
 					ok, props.size = pcall(function() local s = child.Size; return {s.X, s.Y, s.Z} end)
-					ok, props.orientation = pcall(function() local o = child.Orientation; return {o.X, o.Y, o.Z} end)
 					ok, props.anchored = pcall(function() return child.Anchored end)
 					ok, props.canCollide = pcall(function() return child.CanCollide end)
 					ok, props.transparency = pcall(function() return child.Transparency end)
