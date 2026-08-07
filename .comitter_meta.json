@@ -1,15 +1,13 @@
 {
   "classes": {},
-  "commit": "0960f91b66071b18320fb6c3b56be54b3486c7e6",
+  "commit": "e8bc663f2ca82885a0373285b962755a38fc0db5",
   "meta_version": 1,
   "uids": {
-    "ServerScriptService/Gitgnore": "21b4e427-a22c-4c5c-8a05-8d57b13a2c95",
-    "ServerScriptService/Script": "33b62791-6ed2-4420-8f95-3aaddd03d572",
-    "ServerScriptService/bernardo": "e21fe690-6ddf-423d-8f25-2ca58c4b9219",
-    "ServerScriptService/coconut": "0da0c686-c4eb-4830-9130-4d8dddfaa02a",
-    "ServerScriptService/dudu": "ad815f49-beb4-42dc-b569-7724e6366935",
-    "ServerScriptService/merg": "4e4664f8-fafb-45bd-b209-0b75398cbae0",
-    "ServerStorage/ModuleScript": "a200a52f-ecca-4a03-a3f1-3f74de8c9036",
+    "ServerScriptService/bernardo": "c8ad588d-fff7-4ace-b433-5043ff85c5ac",
+    "ServerScriptService/coconut": "4f5a2873-dcfe-4285-9907-ea21a3fe76fa",
+    "ServerScriptService/dudu": "b9e157ff-8dbe-4127-900d-6ae3647b0b73",
+    "ServerScriptService/merg": "3fb308be-cc58-4aab-a8d0-e17c5c233cf0",
+    "ServerStorage/ModuleScript": "17a7f75b-b5ee-4957-8fdf-3acdd2f7088d",
     "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "4f8633f9-22e4-4129-9112-ed954ac98e63"
   }
 }
