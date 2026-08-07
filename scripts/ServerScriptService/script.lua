@@ -977,21 +977,33 @@ local function clearTrackedParts(keepPartes)
 	end
 end
 
+local function findInTree(parent, name)
+	-- Search recursively for instance by name
+	for _, child in ipairs(parent:GetChildren()) do
+		if child.Name == name then return child end
+		local found = findInTree(child, name)
+		if found then return found end
+	end
+	return nil
+end
+
 local function injectPartes(partes, fileMap)
 	clearTrackedParts(partes)
 	if not partes then return end
 	local ws = workspace
 	for partName, meta in pairs(partes) do
+		-- Try exact path from fileMap first: Workspace/<model>/<part>/Script
 		local existing = ws:FindFirstChild(partName)
+		if not existing then
+			existing = findInTree(ws, partName)
+		end
 		if not existing then
 			local className = meta.className or "Part"
 			local ok, obj = pcall(function() return Instance.new(className) end)
 			if ok and obj then
 				obj.Name = partName
 				obj.Parent = ws
-				-- Set Comitter_track so scanner picks it up
 				obj:SetAttribute("Comitter_track", true)
-				-- Apply properties
 				pcall(function() if meta.position then obj.Position = Vector3.new(unpack(meta.position)) end end)
 				pcall(function() if meta.size then obj.Size = Vector3.new(unpack(meta.size)) end end)
 				pcall(function() if meta.orientation then obj.Orientation = Vector3.new(unpack(meta.orientation)) end end)
@@ -1002,7 +1014,6 @@ local function injectPartes(partes, fileMap)
 				pcall(function() if meta.material then obj.Material = Enum.Material[meta.material] end end)
 			end
 		else
-			-- Ensure existing Part has the track attribute
 			if not existing:GetAttribute("Comitter_track") then
 				existing:SetAttribute("Comitter_track", true)
 			end
