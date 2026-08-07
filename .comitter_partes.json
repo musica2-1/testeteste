@@ -16,19 +16,19 @@
     "canCollide": true,
     "anchored": false,
     "transparency": 0,
-    "brickColor": 194,
+    "brickColor": 107,
     "position": [
-      4.950000286102295,
+      -35.29999923706055,
       12.000003814697266,
-      -6.899999618530273
+      9.5
     ],
-    "orientation": "user_Script.rbxmx.Script:820: attempt to index number with 'X'",
+    "orientation": "user_Script.rbxmx.script:823: attempt to index number with 'X'",
     "material": "Plastic",
     "className": "Part",
     "size": [
-      16.100000381469727,
+      12,
       1,
-      13
+      20.600000381469727
     ]
   }
 }
