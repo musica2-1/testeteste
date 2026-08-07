@@ -7,7 +7,7 @@ local Config = {}
 
 Config.PROXY_URL = "http://127.0.0.1:3016"
 Config.PLUGIN_NAME = "Comitter"
-Config.PLUGIN_VERSION = "0.1.0"
+Config.PLUGIN_VERSION = "1.5.0"
 Config.COMMIT_TYPES = {"feat", "fix", "chore", "refactor", "docs", "test", "style", "perf"}
 
 
@@ -738,7 +738,7 @@ function GUI:getMsg() return msgBox and msgBox.Text or "save" end
 
 
 -- init
--- init.lua — Comitter v0.7.0
+-- init.lua — Comitter v1.5.0
 -- Ordem CRÍTICA: helpers → callbacks → GUI:init()
 
 -- Serviços escaneáveis
@@ -1580,7 +1580,6 @@ end
 GUI.OnCherryPick = function()
 	local sg = GUI.widget and GUI.widget.Parent
 	if not sg then return end
-	-- Build branch list for dropdown
 	local branchNames = {}
 	for _, b in ipairs(state.branches) do
 		if b.name ~= state.branch then table.insert(branchNames, b.name) end
@@ -1590,16 +1589,13 @@ GUI.OnCherryPick = function()
 		return
 	end
 
-	local sg = GUI.widget and GUI.widget.Parent
-	if not sg then return end
-	-- Destroy existing cherry-pick popup if any
 	local existingCp = sg:FindFirstChild("CherryPickPopup")
 	if existingCp then existingCp:Destroy() end
 
 	local popup = Instance.new("Frame")
 	popup.Name = "CherryPickPopup"
-	popup.Size = UDim2.new(0, 360, 0, 400)
-	popup.Position = UDim2.new(0.5, -180, 0.5, -200)
+	popup.Size = UDim2.new(0, 360, 0, 420)
+	popup.Position = UDim2.new(0.5, -180, 0.5, -210)
 	popup.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
 	popup.BorderSizePixel = 1; popup.BorderColor3 = Color3.fromRGB(60, 60, 70)
 	popup.ZIndex = 400; popup.Parent = sg
@@ -1737,7 +1733,7 @@ GUI.OnHistory = function()
 			return
 		end
 		for _, c in ipairs(r.commits) do
-			local row = Instance.new("Frame"); row.Size = UDim2.new(1, 0, 0, 48)
+			local row = Instance.new("Frame"); row.Size = UDim2.new(1, 0, 0, 52)
 			row.BackgroundColor3 = Color3.fromRGB(35, 35, 40); row.Parent = histList
 			local hashL = Instance.new("TextLabel"); hashL.Size = UDim2.new(0, 70, 0, 14); hashL.Position = UDim2.new(0, 4, 0, 2)
 			hashL.BackgroundTransparency = 1; hashL.TextColor3 = Color3.fromRGB(100, 180, 255); hashL.Font = Enum.Font.Code
@@ -1748,11 +1744,23 @@ GUI.OnHistory = function()
 			local msgL = Instance.new("TextLabel"); msgL.Size = UDim2.new(1, -8, 0, 14); msgL.Position = UDim2.new(0, 4, 0, 18)
 			msgL.BackgroundTransparency = 1; msgL.TextColor3 = Color3.fromRGB(220, 220, 230); msgL.Font = Enum.Font.GothamSemibold
 			msgL.TextSize = 11; msgL.Text = c.message or ""; msgL.TextXAlignment = Enum.TextXAlignment.Left; msgL.Parent = row
-			local authorL = Instance.new("TextLabel"); authorL.Size = UDim2.new(1, -8, 0, 12); authorL.Position = UDim2.new(0, 4, 0, 32)
-			authorL.BackgroundTransparency = 1; authorL.TextColor3 = Color3.fromRGB(140, 140, 150); authorL.Font = Enum.Font.Gotham
-			authorL.TextSize = 9; authorL.Text = c.author or ""; authorL.TextXAlignment = Enum.TextXAlignment.Left; authorL.Parent = row
+
+			-- Apply button
+			local applyBtn = Instance.new("TextButton"); applyBtn.Size = UDim2.new(0, 80, 0, 18); applyBtn.Position = UDim2.new(1, -84, 0, 32)
+			applyBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 212); applyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			applyBtn.Font = Enum.Font.GothamBold; applyBtn.TextSize = 10; applyBtn.Text = "Apply"
+			applyBtn.BorderSizePixel = 0; applyBtn.Parent = row
+			applyBtn.MouseButton1Click:Connect(function()
+				local ack = RPC:send("apply_commit", {place = state.place, hash = c.hash, branch = histBranch})
+				if ack.success and ack.files then
+					local n = injectScripts(ack.files, {}, ack.hash, {})
+					log("Applied " .. n .. " scripts from " .. (c.shortHash or c.hash:sub(1,7)))
+				else
+					log("✗ Apply failed: " .. (ack.error or "unknown"))
+				end
+			end)
 		end
-		histList.CanvasSize = UDim2.new(0, 0, 0, #r.commits * 50 + 4)
+		histList.CanvasSize = UDim2.new(0, 0, 0, #r.commits * 54 + 4)
 	end
 
 	-- Build popup
@@ -1931,7 +1939,7 @@ if state.online then
 		state.staged = scanScripts()
 		refreshUI()
 	end
-	log("Comitter v0.7.0 ready")
+	log("Comitter v1.5.0 ready")
 else
-	log("Comitter v0.7.0 — Offline. Rode o daemon: fuser -k 3017/tcp; cd ~/Documentos/Comitter && python3 daemon/server.py &")
+	log("Comitter v1.5.0 — Offline. Rode: ./start.sh")
 end
