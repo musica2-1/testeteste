@@ -16,19 +16,19 @@
     "canCollide": true,
     "anchored": false,
     "transparency": 0,
-    "brickColor": 107,
+    "brickColor": 1014,
     "position": [
-      -35.29999923706055,
-      12.000003814697266,
-      -35.900001525878906
+      -35.849998474121094,
+      6.800004005432129,
+      -15.799999237060547
     ],
     "orientation": "user_Script.rbxmx.script:823: attempt to index number with 'X'",
-    "material": "ClayRoofTiles",
+    "material": "Brick",
     "className": "Part",
     "size": [
-      12,
-      1,
-      20.600000381469727
+      14.5,
+      3.6000001430511475,
+      13
     ]
   }
 }
