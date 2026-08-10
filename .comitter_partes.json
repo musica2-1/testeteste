@@ -18,17 +18,17 @@
     "transparency": 0,
     "brickColor": 1014,
     "position": [
-      -35.849998474121094,
+      -37.25,
       6.800004005432129,
-      -15.799999237060547
+      -10.44999885559082
     ],
-    "orientation": "user_Script.rbxmx.script:823: attempt to index number with 'X'",
+    "orientation": "user_Script.rbxmx.script:819: attempt to index number with 'X'",
     "material": "Brick",
     "className": "Part",
     "size": [
-      14.5,
+      17.299999237060547,
       3.6000001430511475,
-      13
+      16.299999237060547
     ]
   }
 }
