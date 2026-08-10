@@ -1,6 +1,11 @@
 {
   "classes": {},
-  "commit": "f5269eb1669e23e226dbb88ea999dab6c5658d90",
+  "commit": "76a1cf9cce6ac0fc15d2bf320071baa970a25952",
   "meta_version": 1,
-  "uids": {}
+  "uids": {
+    "ServerScriptService/bernardo": "f93c4cd2-a057-4214-877b-84aea0a227af",
+    "ServerScriptService/dudu": "420dc36b-499d-4eab-9331-352fc2d5cdac",
+    "ServerScriptService/script": "97233132-6b06-4945-bdce-203fa70f85c1",
+    "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "4f8633f9-22e4-4129-9112-ed954ac98e63"
+  }
 }
