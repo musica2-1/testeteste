@@ -119,7 +119,7 @@ end
 
 
 -- GUI
--- GUI.lua — Comitter (design refinado: minimalista, escuro, cantos suaves)
+-- GUI.lua — Comitter (design GitHub Desktop: toolbar, 2 painéis, terminal, status bar)
 local GUI = {}
 GUI.widget = nil
 GUI.OnCommit = nil; GUI.OnPush = nil; GUI.OnPull = nil
@@ -130,26 +130,35 @@ GUI.OnCherryPick = nil
 GUI.OnHistory = nil
 GUI.OnScanConfig = nil
 
-local termOut, termIn, branchList, statusLabel, fileList, diffView, nameBox, msgBox
+local termIn, branchList, statusLabel, fileList, diffView, nameBox, msgBox, newBranchForm
 local guiScreen
 
--- ===== HELPERS =====
+-- ===== PALETA — neutra, um accent só (espelho do comitter_gui.py) =====
 local C = {
-	bg = Color3.fromRGB(26, 26, 28),
-	panel = Color3.fromRGB(32, 32, 35),
-	top = Color3.fromRGB(40, 40, 44),
-	input = Color3.fromRGB(50, 50, 54),
-	accent = Color3.fromRGB(0, 120, 212),
-	accentHover = Color3.fromRGB(20, 140, 232),
-	green = Color3.fromRGB(14, 138, 74),
-	greenHover = Color3.fromRGB(24, 158, 84),
-	red = Color3.fromRGB(160, 35, 45),
-	redHover = Color3.fromRGB(180, 45, 55),
-	text = Color3.fromRGB(204, 204, 204),
-	textDim = Color3.fromRGB(120, 120, 130),
-	textBright = Color3.fromRGB(224, 224, 224),
-	border = Color3.fromRGB(55, 55, 60),
-	hover = Color3.fromRGB(55, 55, 60),
+	bg = Color3.fromRGB(30, 30, 31),
+	header = Color3.fromRGB(36, 36, 38),
+	sidebarBg = Color3.fromRGB(32, 32, 34),
+	panel = Color3.fromRGB(28, 28, 30),
+	border = Color3.fromRGB(58, 58, 61),
+	input = Color3.fromRGB(42, 42, 44),
+	accent = Color3.fromRGB(47, 111, 165),
+	accentHover = Color3.fromRGB(58, 125, 181),
+	text = Color3.fromRGB(201, 201, 204),
+	textDim = Color3.fromRGB(135, 135, 141),
+	textBright = Color3.fromRGB(242, 242, 244),
+	selectBg = Color3.fromRGB(18, 58, 92),
+	diffBg = Color3.fromRGB(26, 26, 28),
+	diffAddFg = Color3.fromRGB(143, 209, 143),
+	diffAddBg = Color3.fromRGB(18, 32, 22),
+	diffDelFg = Color3.fromRGB(242, 166, 166),
+	diffDelBg = Color3.fromRGB(36, 20, 20),
+	diffHunkFg = Color3.fromRGB(108, 182, 242),
+	statusM = Color3.fromRGB(215, 186, 125),
+	statusA = Color3.fromRGB(137, 209, 133),
+	statusD = Color3.fromRGB(241, 76, 76),
+	statusQ = Color3.fromRGB(135, 135, 141),
+	online = Color3.fromRGB(108, 194, 108),
+	offline = Color3.fromRGB(224, 96, 96),
 }
 local F = {
 	h = Enum.Font.GothamBold,
@@ -159,13 +168,13 @@ local F = {
 
 local function rnd(inst, r)
 	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, r or 6)
+	c.CornerRadius = UDim.new(0, r or 4)
 	c.Parent = inst
 end
 
 local function stroke(inst, c, t)
 	local s = Instance.new("UIStroke")
-	s.Color = c or Color3.fromRGB(50, 50, 55)
+	s.Color = c or C.border
 	s.Thickness = t or 1
 	s.Parent = inst
 end
@@ -175,170 +184,361 @@ local function addHover(b, normal, over)
 	b.MouseLeave:Connect(function() b.BackgroundColor3 = normal end)
 end
 
+local function eyebrow(text)
+	return text:gsub("(.)", "%1 ")
+end
+
+local function vline(parent)
+	local f = Instance.new("Frame")
+	f.Size = UDim2.new(0, 1, 1, 0)
+	f.BackgroundColor3 = C.border
+	f.BorderSizePixel = 0
+	f.Parent = parent
+	return f
+end
+
+local function hline(parent)
+	local f = Instance.new("Frame")
+	f.Size = UDim2.new(1, 0, 0, 1)
+	f.BackgroundColor3 = C.border
+	f.BorderSizePixel = 0
+	f.Parent = parent
+	return f
+end
+
+-- Botão flat estilo GitHub Desktop (kind: primary/default/ghost/danger)
+local function flatBtn(parent, text, kind, cb, w, hgt)
+	local kinds = {
+		primary = {C.accent, C.accentHover, Color3.fromRGB(255, 255, 255)},
+		default = {Color3.fromRGB(44, 44, 46), Color3.fromRGB(55, 55, 58), C.text},
+		ghost = {C.header, Color3.fromRGB(47, 47, 49), C.textDim},
+		danger = {Color3.fromRGB(58, 31, 34), Color3.fromRGB(74, 36, 41), Color3.fromRGB(255, 156, 156)},
+	}
+	local k = kinds[kind] or kinds.default
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0, w or 90, 0, hgt or 24)
+	b.BackgroundColor3 = k[1]
+	b.TextColor3 = k[3]
+	b.Font = F.b
+	b.TextSize = 11
+	b.Text = text
+	b.AutoButtonColor = false
+	b.BorderSizePixel = 0
+	rnd(b, 4)
+	b.Parent = parent
+	addHover(b, k[1], k[2])
+	if cb then
+		b.MouseButton1Click:Connect(function() cb() end)
+	end
+	return b
+end
+
 function GUI:init()
 	local sg = Instance.new("ScreenGui"); sg.Name = "Comitter"; sg.Parent = game:GetService("CoreGui")
 	sg.ResetOnSpawn = false; sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	guiScreen = sg
 
 	local main = Instance.new("Frame")
-	main.Size = UDim2.new(0, 560, 0, 480)
-	main.Position = UDim2.new(0.5, -280, 0.5, -240)
+	main.Size = UDim2.new(0, 680, 0, 460)
+	main.Position = UDim2.new(0.5, -340, 0.5, -230)
 	main.BackgroundColor3 = C.bg
 	main.BorderSizePixel = 0
-	rnd(main, 8)
-	stroke(main)
+	stroke(main, Color3.fromRGB(45, 45, 48), 1)
 	main.Parent = sg
 
-	-- ===== TOP BAR =====
-	local top = Instance.new("Frame")
-	top.Size = UDim2.new(1, 0, 0, 40)
-	top.BackgroundColor3 = C.top
-	top.BorderSizePixel = 0
-	rnd(top, 8)
-	top.Parent = main
-	-- Bottom separator line
-	local topLine = Instance.new("Frame")
-	topLine.Size = UDim2.new(1, 0, 0, 1)
-	topLine.Position = UDim2.new(0, 0, 1, 0)
-	topLine.BackgroundColor3 = C.border
-	topLine.BorderSizePixel = 0
-	topLine.Parent = top
+	-- ===== TOOLBAR (28px, estilo GitHub Desktop) =====
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.new(1, 0, 0, 28)
+	bar.BackgroundColor3 = C.header
+	bar.BorderSizePixel = 0
+	bar.Parent = main
 
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(0, 100, 1, 0)
-	title.Position = UDim2.new(0, 12, 0, 0)
-	title.BackgroundTransparency = 1
-	title.TextColor3 = Color3.fromRGB(200, 210, 230)
-	title.Font = F.h
-	title.TextSize = 14
-	title.Text = "Comitter"
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.Parent = top
+	local left = Instance.new("Frame")
+	left.Size = UDim2.new(0, 180, 1, 0)
+	left.BackgroundColor3 = C.header
+	left.BorderSizePixel = 0
+	left.Parent = bar
 
-	statusLabel = Instance.new("TextLabel")
-	statusLabel.Size = UDim2.new(0, 90, 1, 0)
-	statusLabel.Position = UDim2.new(0, 116, 0, 0)
-	statusLabel.BackgroundTransparency = 1
-	statusLabel.TextColor3 = Color3.fromRGB(100, 220, 100)
-	statusLabel.Font = F.b
-	statusLabel.TextSize = 10
-	statusLabel.Text = "● Online"
-	statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-	statusLabel.Parent = top
+	local projLbl = Instance.new("TextLabel")
+	projLbl.Size = UDim2.new(0, 46, 1, 0); projLbl.Position = UDim2.new(0, 8, 0, 0)
+	projLbl.BackgroundTransparency = 1; projLbl.TextColor3 = C.textDim; projLbl.Font = F.b
+	projLbl.TextSize = 9; projLbl.Text = "Project"; projLbl.TextXAlignment = Enum.TextXAlignment.Left
+	projLbl.Parent = left
 
 	nameBox = Instance.new("TextBox")
-	nameBox.Size = UDim2.new(0, 80, 0, 24)
-	nameBox.Position = UDim2.new(0, 208, 0, 8)
-	nameBox.BackgroundColor3 = C.input
-	nameBox.TextColor3 = C.textBright
-	nameBox.PlaceholderColor3 = C.textDim
-	nameBox.PlaceholderText = "place"
-	nameBox.Font = F.m
-	nameBox.TextSize = 11
-	nameBox.Text = "MeuJogo"
-	nameBox.BorderSizePixel = 0
-	rnd(nameBox, 4)
-	nameBox.Parent = top
+	nameBox.Size = UDim2.new(0, 110, 0, 20); nameBox.Position = UDim2.new(0, 56, 0, 4)
+	nameBox.BackgroundColor3 = C.input; nameBox.TextColor3 = C.textBright
+	nameBox.PlaceholderColor3 = C.textDim; nameBox.PlaceholderText = "place"
+	nameBox.Font = F.m; nameBox.TextSize = 11; nameBox.Text = "MeuJogo"
+	nameBox.BorderSizePixel = 0; rnd(nameBox, 3)
+	nameBox.Parent = left
 
-	-- Top bar buttons
-	local function tbtn(text, x, w, bg, action)
-		local b = Instance.new("TextButton")
-		b.Size = UDim2.new(0, w, 0, 26)
-		b.Position = UDim2.new(0, x, 0, 7)
-		b.BackgroundColor3 = bg
-		b.TextColor3 = Color3.fromRGB(255, 255, 255)
-		b.Font = F.h
-		b.TextSize = 11
-		b.Text = text
-		b.AutoButtonColor = false
-		b.BorderSizePixel = 0
-		rnd(b, 4)
-		b.Parent = top
-		local map = {commit = "OnCommit", pull = "OnPull", push = "OnPush", history = "OnHistory"}
-		local cb = map[action]
-		if cb then
-			b.MouseButton1Click:Connect(function()
-				if GUI[cb] then GUI[cb]() end
-			end)
-		end
-		if bg ~= C.green then
-			addHover(b, bg, Color3.fromRGB(65, 65, 70))
-		else
-			addHover(b, bg, C.greenHover)
-		end
-	end
+	local right = Instance.new("Frame")
+	right.Size = UDim2.new(1, -180, 1, 0); right.Position = UDim2.new(0, 180, 0, 0)
+	right.BackgroundColor3 = C.header
+	right.BorderSizePixel = 0
+	right.Parent = bar
 
-	tbtn("Commit", 300, 56, C.green, "commit")
-	tbtn("Pull", 360, 36, Color3.fromRGB(58, 58, 62), "pull")
-	tbtn("Push", 400, 36, Color3.fromRGB(58, 58, 62), "push")
-	tbtn("Hist", 426, 28, Color3.fromRGB(55, 55, 60), "history")
+	local settingsBtn = flatBtn(right, "⚙", "ghost", function()
+		if GUI.OnConfigSave then GUI.OnConfigSave() end
+	end, 24, 20)
+	settingsBtn.Position = UDim2.new(1, -28, 0, 4)
+	settingsBtn.TextSize = 12
 
-	-- Scan config button
-	local scanBtn = Instance.new("TextButton")
-	scanBtn.Size = UDim2.new(0, 28, 0, 26)
-	scanBtn.Position = UDim2.new(0, 456, 0, 7)
-	scanBtn.BackgroundColor3 = Color3.fromRGB(58, 58, 62)
-	scanBtn.TextColor3 = C.textBright
-	scanBtn.Font = F.h
-	scanBtn.TextSize = 14
-	scanBtn.Text = "🔍"
-	scanBtn.AutoButtonColor = false
-	scanBtn.BorderSizePixel = 0
-	rnd(scanBtn, 4)
-	scanBtn.Parent = top
-	addHover(scanBtn, Color3.fromRGB(58, 58, 62), Color3.fromRGB(65, 65, 70))
-	scanBtn.MouseButton1Click:Connect(function()
+	local scanBtn = flatBtn(right, "↻", "ghost", function()
 		if GUI.OnScanConfig then GUI.OnScanConfig() end
+	end, 24, 20)
+	scanBtn.Position = UDim2.new(1, -56, 0, 4)
+	scanBtn.TextSize = 12
+
+	local f2 = Instance.new("Frame")
+	f2.Size = UDim2.new(0, 240, 1, 0); f2.Position = UDim2.new(1, -250, 0, 0)
+	f2.BackgroundColor3 = C.header
+	f2.BorderSizePixel = 0
+	f2.Parent = right
+	local vl = vline(f2)
+	vl.Position = UDim2.new(0, 0, 0, 4)
+
+	local histBtn = flatBtn(f2, "History", "ghost", function()
+		if GUI.OnHistory then GUI.OnHistory() end
+	end, 60, 20)
+	histBtn.Position = UDim2.new(0, 6, 0, 4)
+	local pushBtn = flatBtn(f2, "Push", "default", function()
+		if GUI.OnPush then GUI.OnPush() end
+	end, 46, 20)
+	pushBtn.Position = UDim2.new(0, 70, 0, 4)
+	local pullBtn = flatBtn(f2, "Pull", "default", function()
+		if GUI.OnPull then GUI.OnPull() end
+	end, 46, 20)
+	pullBtn.Position = UDim2.new(0, 120, 0, 4)
+
+	hline(main)
+
+	-- ===== MAIN (2 painéis: left | diff) =====
+	local body = Instance.new("Frame")
+	body.Size = UDim2.new(1, 0, 1, -28)
+	body.Position = UDim2.new(0, 0, 0, 28)
+	body.BackgroundColor3 = C.bg
+	body.Parent = main
+
+	-- LEFT COLUMN (280px fixo)
+	local leftCol = Instance.new("Frame")
+	leftCol.Size = UDim2.new(0, 280, 1, 0)
+	leftCol.BackgroundColor3 = C.bg
+	leftCol.BorderSizePixel = 0
+	leftCol.Parent = body
+
+	-- --- staged changes ---
+	local head = Instance.new("Frame")
+	head.Size = UDim2.new(1, -16, 0, 20); head.Position = UDim2.new(0, 8, 0, 6)
+	head.BackgroundColor3 = C.bg; head.BorderSizePixel = 0
+	head.Parent = leftCol
+
+	local stagedLbl = Instance.new("TextLabel")
+	stagedLbl.Size = UDim2.new(0, 140, 1, 0)
+	stagedLbl.BackgroundTransparency = 1; stagedLbl.TextColor3 = C.textDim; stagedLbl.Font = F.h
+	stagedLbl.TextSize = 9; stagedLbl.Text = eyebrow("STAGED CHANGES")
+	stagedLbl.TextXAlignment = Enum.TextXAlignment.Left; stagedLbl.Parent = head
+
+	local cpBtn = flatBtn(head, "Cherry-pick", "ghost", function()
+		if GUI.OnCherryPick then GUI.OnCherryPick() end
+	end, 70, 16)
+	cpBtn.Position = UDim2.new(1, -74, 0, 2)
+	cpBtn.TextSize = 9
+
+	local treeFrame = Instance.new("Frame")
+	treeFrame.Size = UDim2.new(1, -12, 0, 96); treeFrame.Position = UDim2.new(0, 6, 0, 28)
+	treeFrame.BackgroundColor3 = C.panel
+	treeFrame.BorderSizePixel = 0
+	treeFrame.Parent = leftCol
+
+	fileList = Instance.new("ScrollingFrame")
+	fileList.Size = UDim2.new(1, 0, 1, 0)
+	fileList.BackgroundTransparency = 1
+	fileList.ScrollBarThickness = 4
+	fileList.CanvasSize = UDim2.new(0, 0, 0, 0)
+	fileList.BorderSizePixel = 0
+	fileList.Parent = treeFrame
+	local fll = Instance.new("UIListLayout"); fll.Padding = UDim.new(0, 1); fll.Parent = fileList
+
+	-- --- commit message ---
+	local msgLbl = Instance.new("TextLabel")
+	msgLbl.Size = UDim2.new(1, -16, 0, 14); msgLbl.Position = UDim2.new(0, 8, 0, 128)
+	msgLbl.BackgroundTransparency = 1; msgLbl.TextColor3 = C.textDim; msgLbl.Font = F.h
+	msgLbl.TextSize = 9; msgLbl.Text = eyebrow("COMMIT MESSAGE")
+	msgLbl.TextXAlignment = Enum.TextXAlignment.Left; msgLbl.Parent = leftCol
+
+	msgBox = Instance.new("TextBox")
+	msgBox.Size = UDim2.new(1, -12, 0, 46); msgBox.Position = UDim2.new(0, 6, 0, 144)
+	msgBox.BackgroundColor3 = C.input; msgBox.TextColor3 = C.textBright
+	msgBox.PlaceholderColor3 = C.textDim; msgBox.PlaceholderText = "Describe what changed..."
+	msgBox.Font = F.m; msgBox.TextSize = 11; msgBox.Text = ""
+	msgBox.TextWrapped = true; msgBox.TextYAlignment = Enum.TextYAlignment.Top
+	msgBox.BorderSizePixel = 0; rnd(msgBox, 4)
+	msgBox.Parent = leftCol
+
+	local commitBtn = flatBtn(leftCol, "Commit changes", "primary", function()
+		if GUI.OnCommit then GUI.OnCommit() end
+	end, 260, 26)
+	commitBtn.Position = UDim2.new(0, 6, 0, 194)
+	commitBtn.TextSize = 11
+
+	hline(leftCol)
+	local branchHdr = Instance.new("Frame")
+	branchHdr.Size = UDim2.new(1, -16, 0, 20); branchHdr.Position = UDim2.new(0, 8, 0, 224)
+	branchHdr.BackgroundColor3 = C.bg; branchHdr.BorderSizePixel = 0
+	branchHdr.Parent = leftCol
+
+	local branchLbl = Instance.new("TextLabel")
+	branchLbl.Size = UDim2.new(0, 100, 1, 0)
+	branchLbl.BackgroundTransparency = 1; branchLbl.TextColor3 = C.textDim; branchLbl.Font = F.h
+	branchLbl.TextSize = 9; branchLbl.Text = eyebrow("BRANCHES")
+	branchLbl.TextXAlignment = Enum.TextXAlignment.Left; branchLbl.Parent = branchHdr
+
+	local newBranchBtn = flatBtn(branchHdr, "+", "ghost", function()
+		newBranchForm.Visible = not newBranchForm.Visible
+	end, 20, 16)
+	newBranchBtn.Position = UDim2.new(1, -24, 0, 2)
+
+	-- New branch form (oculto, toggle pelo +)
+	newBranchForm = Instance.new("Frame")
+	newBranchForm.Size = UDim2.new(1, -16, 0, 64); newBranchForm.Position = UDim2.new(0, 8, 0, 246)
+	newBranchForm.BackgroundColor3 = C.bg; newBranchForm.BorderSizePixel = 0
+	newBranchForm.Visible = false
+	newBranchForm.Parent = leftCol
+
+	local nbLbl = Instance.new("TextLabel")
+	nbLbl.Size = UDim2.new(1, 0, 0, 12)
+	nbLbl.BackgroundTransparency = 1; nbLbl.TextColor3 = C.textDim; nbLbl.Font = F.h
+	nbLbl.TextSize = 9; nbLbl.Text = eyebrow("NEW BRANCH")
+	nbLbl.TextXAlignment = Enum.TextXAlignment.Left; nbLbl.Parent = newBranchForm
+
+	local newName = Instance.new("TextBox")
+	newName.Size = UDim2.new(1, 0, 0, 18); newName.Position = UDim2.new(0, 0, 0, 14)
+	newName.BackgroundColor3 = C.input; newName.TextColor3 = C.textBright
+	newName.PlaceholderColor3 = C.textDim; newName.PlaceholderText = "2.0-name"
+	newName.Font = F.m; newName.TextSize = 10; newName.Text = ""
+	newName.BorderSizePixel = 0; rnd(newName, 3)
+	newName.Parent = newBranchForm
+
+	local createBtn = flatBtn(newBranchForm, "Create branch", "primary", function()
+		local name = newName.Text:match("^%s*(.-)%s*$")
+		if name ~= "" and GUI.OnCreateBranch then
+			GUI.OnCreateBranch(name)
+			newName.Text = ""
+			newBranchForm.Visible = false
+		end
+	end, 130, 20)
+	createBtn.Position = UDim2.new(0, 0, 0, 36)
+	createBtn.TextSize = 10
+
+	-- Branch list (ocupa o resto)
+	local branchFrame = Instance.new("Frame")
+	branchFrame.Size = UDim2.new(1, -12, 1, -252); branchFrame.Position = UDim2.new(0, 6, 0, 246)
+	branchFrame.BackgroundColor3 = C.panel
+	branchFrame.BorderSizePixel = 0
+	branchFrame.Parent = leftCol
+
+	branchList = Instance.new("ScrollingFrame")
+	branchList.Size = UDim2.new(1, 0, 1, 0)
+	branchList.BackgroundTransparency = 1
+	branchList.ScrollBarThickness = 4
+	branchList.CanvasSize = UDim2.new(0, 0, 0, 0)
+	branchList.BorderSizePixel = 0
+	branchList.Parent = branchFrame
+	local bll = Instance.new("UIListLayout"); bll.Padding = UDim.new(0, 2); bll.Parent = branchList
+
+	local sep = vline(body)
+	sep.Position = UDim2.new(0, 280, 0, 0)
+
+	-- ===== DIFF PANE =====
+	local diffPane = Instance.new("Frame")
+	diffPane.Size = UDim2.new(1, -281, 1, 0); diffPane.Position = UDim2.new(0, 281, 0, 0)
+	diffPane.BackgroundColor3 = C.bg
+	diffPane.BorderSizePixel = 0
+	diffPane.Parent = body
+
+	local diffLbl = Instance.new("TextLabel")
+	diffLbl.Size = UDim2.new(1, -16, 0, 14); diffLbl.Position = UDim2.new(0, 8, 0, 6)
+	diffLbl.BackgroundTransparency = 1; diffLbl.TextColor3 = C.textDim; diffLbl.Font = F.h
+	diffLbl.TextSize = 9; diffLbl.Text = eyebrow("DIFF")
+	diffLbl.TextXAlignment = Enum.TextXAlignment.Left; diffLbl.Parent = diffPane
+
+	local diffOuter = Instance.new("Frame")
+	diffOuter.Size = UDim2.new(1, -12, 1, -24); diffOuter.Position = UDim2.new(0, 6, 0, 22)
+	diffOuter.BackgroundColor3 = C.diffBg
+	diffOuter.BorderSizePixel = 1; diffOuter.BorderColor3 = C.border
+	diffOuter.Parent = diffPane
+
+	diffView = Instance.new("ScrollingFrame")
+	diffView.Size = UDim2.new(1, 0, 1, 0)
+	diffView.BackgroundTransparency = 1
+	diffView.ScrollBarThickness = 4
+	diffView.CanvasSize = UDim2.new(0, 0, 0, 0)
+	diffView.BorderSizePixel = 0
+	diffView.Parent = diffOuter
+	local dvl = Instance.new("UIListLayout"); dvl.Padding = UDim.new(0, 0); dvl.Parent = diffView
+
+	-- ===== TERMINAL =====
+	hline(main)
+	local term = Instance.new("Frame")
+	term.Size = UDim2.new(1, 0, 0, 26); term.Position = UDim2.new(0, 0, 1, -26)
+	term.BackgroundColor3 = C.header
+	term.BorderSizePixel = 0
+	term.Parent = main
+
+	local prompt = Instance.new("TextLabel")
+	prompt.Size = UDim2.new(0, 16, 1, 0); prompt.Position = UDim2.new(0, 8, 0, 0)
+	prompt.BackgroundTransparency = 1; prompt.TextColor3 = C.textDim; prompt.Font = F.m
+	prompt.TextSize = 12; prompt.Text = "❯"
+	prompt.Parent = term
+
+	termIn = Instance.new("TextBox")
+	termIn.Size = UDim2.new(1, -30, 0, 20); termIn.Position = UDim2.new(0, 24, 0, 3)
+	termIn.BackgroundColor3 = C.header; termIn.TextColor3 = Color3.fromRGB(159, 207, 159)
+	termIn.PlaceholderColor3 = C.textDim; termIn.PlaceholderText = "type a command…"
+	termIn.Font = F.m; termIn.TextSize = 11; termIn.Text = ""
+	termIn.BorderSizePixel = 0
+	termIn.Parent = term
+	termIn.FocusLost:Connect(function(ep)
+		if ep and termIn.Text ~= "" and GUI.OnCommand then
+			GUI.OnCommand(termIn.Text); termIn.Text = ""
+		end
 	end)
 
-	-- Config gear
-	local conf = Instance.new("TextButton")
-	conf.Size = UDim2.new(0, 28, 0, 26)
-	conf.Position = UDim2.new(0, 488, 0, 7)
-	conf.BackgroundColor3 = Color3.fromRGB(58, 58, 62)
-	conf.TextColor3 = C.textBright
-	conf.Font = F.h
-	conf.TextSize = 14
-	conf.Text = "⚙"
-	conf.AutoButtonColor = false
-	conf.BorderSizePixel = 0
-	rnd(conf, 4)
-	conf.Parent = top
-	addHover(conf, Color3.fromRGB(58, 58, 62), Color3.fromRGB(65, 65, 70))
+	-- ===== STATUS BAR =====
+	hline(main)
+	local sbar = Instance.new("Frame")
+	sbar.Size = UDim2.new(1, 0, 0, 20); sbar.Position = UDim2.new(0, 0, 1, -46)
+	sbar.BackgroundColor3 = C.header
+	sbar.BorderSizePixel = 0
+	sbar.Parent = main
 
-	-- Minimize / Close
+	local dot = Instance.new("Frame")
+	dot.Size = UDim2.new(0, 8, 0, 8); dot.Position = UDim2.new(0, 8, 0, 6)
+	dot.BackgroundColor3 = C.online
+	dot.BorderSizePixel = 0
+	rnd(dot, 4)
+	dot.Parent = sbar
+
+	statusLabel = Instance.new("TextLabel")
+	statusLabel.Size = UDim2.new(1, -40, 1, 0); statusLabel.Position = UDim2.new(0, 20, 0, 0)
+	statusLabel.BackgroundTransparency = 1; statusLabel.TextColor3 = C.textDim; statusLabel.Font = F.b
+	statusLabel.TextSize = 9; statusLabel.Text = "Online"
+	statusLabel.TextXAlignment = Enum.TextXAlignment.Left; statusLabel.Parent = sbar
+
+	-- Minimize toggle (canto direito da status bar)
 	local minBtn = Instance.new("TextButton")
-	minBtn.Size = UDim2.new(0, 26, 0, 26)
-	minBtn.Position = UDim2.new(0, 518, 0, 7)
-	minBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
-	minBtn.TextColor3 = Color3.fromRGB(180, 180, 190)
-	minBtn.Font = F.h
-	minBtn.TextSize = 12
-	minBtn.Text = "─"
-	minBtn.AutoButtonColor = false
-	minBtn.BorderSizePixel = 0
-	rnd(minBtn, 4)
-	minBtn.Parent = top
-	addHover(minBtn, Color3.fromRGB(60, 60, 65), Color3.fromRGB(70, 70, 75))
-
-	local closeBtn = Instance.new("TextButton")
-	closeBtn.Size = UDim2.new(0, 26, 0, 26)
-	closeBtn.Position = UDim2.new(0, 534, 0, 7)
-	closeBtn.BackgroundColor3 = C.red
-	closeBtn.TextColor3 = Color3.fromRGB(255, 160, 160)
-	closeBtn.Font = F.h
-	closeBtn.TextSize = 12
-	closeBtn.Text = "✕"
-	closeBtn.AutoButtonColor = false
-	closeBtn.BorderSizePixel = 0
-	rnd(closeBtn, 4)
-	closeBtn.Parent = top
-	addHover(closeBtn, C.red, C.redHover)
+	minBtn.Size = UDim2.new(0, 16, 0, 14); minBtn.Position = UDim2.new(1, -20, 0, 3)
+	minBtn.BackgroundColor3 = C.header; minBtn.TextColor3 = C.textDim
+	minBtn.Font = F.h; minBtn.TextSize = 10; minBtn.Text = "─"
+	minBtn.AutoButtonColor = false; minBtn.BorderSizePixel = 0
+	minBtn.Parent = sbar
 
 	local toggleBtn = Instance.new("TextButton")
 	toggleBtn.Size = UDim2.new(0, 32, 0, 24)
 	toggleBtn.Position = UDim2.new(1, -36, 0, 4)
-	toggleBtn.BackgroundColor3 = C.top
+	toggleBtn.BackgroundColor3 = C.header
 	toggleBtn.TextColor3 = Color3.fromRGB(180, 200, 220)
 	toggleBtn.Font = F.h
 	toggleBtn.TextSize = 11
@@ -351,233 +551,25 @@ function GUI:init()
 	minBtn.MouseButton1Click:Connect(function()
 		main.Visible = false; toggleBtn.Visible = true
 	end)
-	closeBtn.MouseButton1Click:Connect(function()
-		main.Visible = false; toggleBtn.Visible = true
-	end)
 	toggleBtn.MouseButton1Click:Connect(function()
 		main.Visible = true; toggleBtn.Visible = false
 	end)
 
-	conf.MouseButton1Click:Connect(function()
-		local popup = Instance.new("Frame")
-		popup.Size = UDim2.new(0, 340, 0, 250)
-		popup.Position = UDim2.new(0.5, -170, 0.5, -125)
-		popup.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
-		popup.BorderSizePixel = 0
-		popup.ZIndex = 200
-		rnd(popup, 8)
-		popup.Parent = sg
-		stroke(popup)
-
-		local hd = Instance.new("Frame")
-		hd.Size = UDim2.new(1, 0, 0, 32)
-		hd.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
-		hd.Parent = popup
-		local ht = Instance.new("TextLabel")
-		ht.Size = UDim2.new(1, -30, 1, 0); ht.Position = UDim2.new(0, 12, 0, 0)
-		ht.BackgroundTransparency = 1; ht.TextColor3 = C.textBright; ht.Font = F.h
-		ht.TextSize = 13; ht.Text = "Settings"; ht.TextXAlignment = Enum.TextXAlignment.Left; ht.Parent = hd
-		local hx = Instance.new("TextButton")
-		hx.Size = UDim2.new(0, 24, 0, 24); hx.Position = UDim2.new(1, -28, 0, 4)
-		hx.BackgroundColor3 = C.red; hx.TextColor3 = Color3.fromRGB(255, 160, 160)
-		hx.Font = F.h; hx.TextSize = 12; hx.Text = "✕"; hx.AutoButtonColor = false
-		hx.BorderSizePixel = 0; rnd(hx, 4); hx.Parent = hd
-		addHover(hx, C.red, C.redHover)
-		hx.MouseButton1Click:Connect(function() popup:Destroy() end)
-
-		local y = 40
-		local function addField(label, ph)
-			local lbl = Instance.new("TextLabel")
-			lbl.Size = UDim2.new(1, -16, 0, 12); lbl.Position = UDim2.new(0, 8, 0, y)
-			lbl.BackgroundTransparency = 1; lbl.TextColor3 = C.textDim; lbl.Font = F.h
-			lbl.TextSize = 9; lbl.Text = label; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Parent = popup
-			y = y + 14
-			local tb = Instance.new("TextBox")
-			tb.Size = UDim2.new(1, -16, 0, 26); tb.Position = UDim2.new(0, 8, 0, y)
-			tb.BackgroundColor3 = C.input; tb.TextColor3 = C.textBright
-			tb.PlaceholderColor3 = C.textDim; tb.PlaceholderText = ph
-			tb.Font = F.m; tb.TextSize = 11; tb.Text = ""
-			tb.BorderSizePixel = 0; rnd(tb, 4); tb.Parent = popup
-			y = y + 30
-			return tb
-		end
-		local userBox = addField("GitHub User:", "seu-usuario")
-		local emailBox = addField("GitHub Email:", "email@github.com")
-		local tokenBox = addField("GitHub Token:", "ghp_...")
-		local remoteBox = addField("Remote URL:", "https://github.com/{user}/{place}.git")
-
-		if GUI.loadConfig then
-			local cfg = GUI.loadConfig()
-			if cfg then
-				userBox.Text = cfg.user or ""
-				emailBox.Text = cfg.email or ""
-				tokenBox.Text = cfg.token or ""
-				remoteBox.Text = cfg.remote_template or ""
-			end
-		end
-
-		local saveBtn = Instance.new("TextButton")
-		saveBtn.Size = UDim2.new(1, -16, 0, 30); saveBtn.Position = UDim2.new(0, 8, 0, y + 4)
-		saveBtn.BackgroundColor3 = C.accent; saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		saveBtn.Font = F.h; saveBtn.TextSize = 12; saveBtn.Text = "Save"
-		saveBtn.AutoButtonColor = false; saveBtn.BorderSizePixel = 0
-		rnd(saveBtn, 6); saveBtn.Parent = popup
-		addHover(saveBtn, C.accent, C.accentHover)
-		saveBtn.MouseButton1Click:Connect(function()
-			if GUI.OnConfigSave then GUI.OnConfigSave(userBox.Text, tokenBox.Text, remoteBox.Text) end
-			popup:Destroy()
-		end)
-	end)
-
-	-- Drag
+	-- Drag pela toolbar
 	local d, ds, sp = false
-	top.InputBegan:Connect(function(i)
+	bar.InputBegan:Connect(function(i)
 		if i.UserInputType == Enum.UserInputType.MouseButton1 and i.UserInputState == Enum.UserInputState.Begin then
 			d = true; ds = i.Position; sp = main.Position
 		end
 	end)
-	top.InputChanged:Connect(function(i)
+	bar.InputChanged:Connect(function(i)
 		if d and i.UserInputType == Enum.UserInputType.MouseMovement then
 			local delta = i.Position - ds
 			main.Position = UDim2.new(sp.X.Scale, sp.X.Offset + delta.X, sp.Y.Scale, sp.Y.Offset + delta.Y)
 		end
 	end)
-	top.InputEnded:Connect(function(i)
+	bar.InputEnded:Connect(function(i)
 		if i.UserInputType == Enum.UserInputType.MouseButton1 then d = false end
-	end)
-
-	-- ===== BODY =====
-	local body = Instance.new("Frame")
-	body.Size = UDim2.new(1, 0, 1, -40)
-	body.Position = UDim2.new(0, 0, 0, 40)
-	body.BackgroundColor3 = C.bg
-	body.Parent = main
-
-	-- LEFT panel
-	local left = Instance.new("Frame")
-	left.Size = UDim2.new(0, 150, 1, 0)
-	left.BackgroundColor3 = C.panel
-	left.BorderSizePixel = 0
-	left.Parent = body
-
-	local lb = Instance.new("TextLabel")
-	lb.Size = UDim2.new(1, -12, 0, 18); lb.Position = UDim2.new(0, 8, 0, 8)
-	lb.BackgroundTransparency = 1; lb.TextColor3 = C.textDim; lb.Font = F.h
-	lb.TextSize = 10; lb.Text = "BRANCHES"; lb.TextXAlignment = Enum.TextXAlignment.Left; lb.Parent = left
-
-	branchList = Instance.new("ScrollingFrame")
-	branchList.Size = UDim2.new(1, -8, 1, -116); branchList.Position = UDim2.new(0, 4, 0, 30)
-	branchList.BackgroundTransparency = 1
-	branchList.ScrollBarThickness = 4; branchList.CanvasSize = UDim2.new(0, 0, 0, 0)
-	branchList.BorderSizePixel = 0; branchList.Parent = left
-	local bll = Instance.new("UIListLayout"); bll.Padding = UDim.new(0, 2); bll.Parent = branchList
-
-	-- New branch section
-	local newLbl = Instance.new("TextLabel")
-	newLbl.Size = UDim2.new(1, -12, 0, 12); newLbl.Position = UDim2.new(0, 8, 1, -80)
-	newLbl.BackgroundTransparency = 1; newLbl.TextColor3 = C.textDim; newLbl.Font = F.h
-	newLbl.TextSize = 9; newLbl.Text = "NEW BRANCH"; newLbl.TextXAlignment = Enum.TextXAlignment.Left; newLbl.Parent = left
-
-	local newName = Instance.new("TextBox")
-	newName.Size = UDim2.new(1, -12, 0, 20); newName.Position = UDim2.new(0, 6, 1, -64)
-	newName.BackgroundColor3 = C.input; newName.TextColor3 = C.textBright; newName.PlaceholderColor3 = C.textDim
-	newName.PlaceholderText = "2.0-name"; newName.Font = F.m; newName.TextSize = 11; newName.Text = ""
-	newName.BorderSizePixel = 0; rnd(newName, 4); newName.Parent = left
-
-	local newDesc = Instance.new("TextBox")
-	newDesc.Size = UDim2.new(1, -12, 0, 20); newDesc.Position = UDim2.new(0, 6, 1, -42)
-	newDesc.BackgroundColor3 = C.input; newDesc.TextColor3 = C.textBright; newDesc.PlaceholderColor3 = C.textDim
-	newDesc.PlaceholderText = "description"; newDesc.Font = F.m; newDesc.TextSize = 11; newDesc.Text = ""
-	newDesc.BorderSizePixel = 0; rnd(newDesc, 4); newDesc.Parent = left
-
-	local newBtn = Instance.new("TextButton")
-	newBtn.Size = UDim2.new(1, -12, 0, 20); newBtn.Position = UDim2.new(0, 6, 1, -20)
-	newBtn.BackgroundColor3 = C.green; newBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	newBtn.Font = F.h; newBtn.TextSize = 11; newBtn.Text = "Create"
-	newBtn.AutoButtonColor = false; newBtn.BorderSizePixel = 0
-	rnd(newBtn, 4); newBtn.Parent = left
-	addHover(newBtn, C.green, C.greenHover)
-	newBtn.MouseButton1Click:Connect(function()
-		if newName.Text == "" then return end
-		local name = newName.Text .. (newDesc.Text ~= "" and "-" .. newDesc.Text:gsub("%s+", "-"):lower() or "")
-		if GUI.OnCreateBranch then GUI.OnCreateBranch(name) end
-		newName.Text = ""; newDesc.Text = ""
-	end)
-
-	-- Border between left and right
-	local sep1 = Instance.new("Frame")
-	sep1.Size = UDim2.new(0, 1, 1, 0); sep1.Position = UDim2.new(1, 0, 0, 0)
-	sep1.BackgroundColor3 = C.border; sep1.BorderSizePixel = 0; sep1.Parent = left
-
-	-- RIGHT panel
-	local right = Instance.new("Frame")
-	right.Size = UDim2.new(1, -151, 1, 0); right.Position = UDim2.new(0, 151, 0, 0)
-	right.BackgroundColor3 = C.bg; right.BorderSizePixel = 0; right.Parent = body
-
-	-- Staged changes
-	local ff = Instance.new("TextLabel")
-	ff.Size = UDim2.new(1, -80, 0, 18); ff.Position = UDim2.new(0, 10, 0, 8)
-	ff.BackgroundTransparency = 1; ff.TextColor3 = C.textDim; ff.Font = F.h
-	ff.TextSize = 10; ff.Text = "STAGED CHANGES"; ff.TextXAlignment = Enum.TextXAlignment.Left; ff.Parent = right
-
-	local cpBtn = Instance.new("TextButton")
-	cpBtn.Size = UDim2.new(0, 66, 0, 18); cpBtn.Position = UDim2.new(1, -76, 0, 8)
-	cpBtn.BackgroundColor3 = Color3.fromRGB(48, 48, 55); cpBtn.TextColor3 = C.text
-	cpBtn.Font = F.h; cpBtn.TextSize = 9; cpBtn.Text = "Cherry-pick"
-	cpBtn.AutoButtonColor = false; cpBtn.BorderSizePixel = 0
-	rnd(cpBtn, 3); cpBtn.Parent = right
-	addHover(cpBtn, Color3.fromRGB(48, 48, 55), Color3.fromRGB(58, 58, 65))
-	cpBtn.MouseButton1Click:Connect(function()
-		if GUI.OnCherryPick then GUI.OnCherryPick() end
-	end)
-
-	fileList = Instance.new("ScrollingFrame")
-	fileList.Size = UDim2.new(1, -12, 0, 110); fileList.Position = UDim2.new(0, 6, 0, 28)
-	fileList.BackgroundTransparency = 1; fileList.ScrollBarThickness = 4
-	fileList.CanvasSize = UDim2.new(0, 0, 0, 0); fileList.BorderSizePixel = 0; fileList.Parent = right
-	local fll = Instance.new("UIListLayout"); fll.Padding = UDim.new(0, 1); fll.Parent = fileList
-
-	-- Commit message
-	local cl = Instance.new("TextLabel")
-	cl.Size = UDim2.new(1, -12, 0, 14); cl.Position = UDim2.new(0, 10, 0, 144)
-	cl.BackgroundTransparency = 1; cl.TextColor3 = C.textDim; cl.Font = F.h
-	cl.TextSize = 10; cl.Text = "COMMIT MESSAGE"; cl.TextXAlignment = Enum.TextXAlignment.Left; cl.Parent = right
-
-	msgBox = Instance.new("TextBox")
-	msgBox.Size = UDim2.new(1, -12, 0, 26); msgBox.Position = UDim2.new(0, 6, 0, 160)
-	msgBox.BackgroundColor3 = C.input; msgBox.TextColor3 = C.textBright; msgBox.PlaceholderColor3 = C.textDim
-	msgBox.PlaceholderText = "Describe what changed..."; msgBox.Font = F.m; msgBox.TextSize = 12; msgBox.Text = ""
-	msgBox.BorderSizePixel = 0; rnd(msgBox, 4); msgBox.Parent = right
-
-	-- Diff viewer
-	local dl = Instance.new("TextLabel")
-	dl.Size = UDim2.new(1, -12, 0, 14); dl.Position = UDim2.new(0, 10, 0, 192)
-	dl.BackgroundTransparency = 1; dl.TextColor3 = C.textDim; dl.Font = F.h
-	dl.TextSize = 10; dl.Text = "DIFF VIEWER"; dl.TextXAlignment = Enum.TextXAlignment.Left; dl.Parent = right
-
-	diffView = Instance.new("ScrollingFrame")
-	diffView.Size = UDim2.new(1, 0, 1, -230); diffView.Position = UDim2.new(0, 0, 0, 208)
-	diffView.BackgroundTransparency = 0; diffView.BackgroundColor3 = Color3.fromRGB(24, 24, 26)
-	diffView.ScrollBarThickness = 4; diffView.CanvasSize = UDim2.new(0, 0, 0, 0)
-	diffView.BorderSizePixel = 0; diffView.Parent = right
-
-	-- Terminal
-	local tf = Instance.new("Frame")
-	tf.Size = UDim2.new(1, 0, 0, 28); tf.Position = UDim2.new(0, 0, 1, -28)
-	tf.BackgroundColor3 = Color3.fromRGB(24, 24, 26); tf.BorderSizePixel = 0; tf.Parent = right
-	-- Terminal top border
-	local tfLine = Instance.new("Frame")
-	tfLine.Size = UDim2.new(1, 0, 0, 1); tfLine.Position = UDim2.new(0, 0, 0, 0)
-	tfLine.BackgroundColor3 = C.border; tfLine.BorderSizePixel = 0; tfLine.Parent = tf
-
-	termIn = Instance.new("TextBox")
-	termIn.Size = UDim2.new(1, -10, 0, 22); termIn.Position = UDim2.new(0, 5, 0, 3)
-	termIn.BackgroundColor3 = C.input; termIn.BorderSizePixel = 0
-	termIn.TextColor3 = Color3.fromRGB(180, 220, 180); termIn.PlaceholderColor3 = C.textDim
-	termIn.PlaceholderText = "> help"; termIn.Font = F.m; termIn.TextSize = 12; termIn.Text = ""
-	rnd(termIn, 4); termIn.Parent = tf
-	termIn.FocusLost:Connect(function(ep)
-		if ep and termIn.Text ~= "" and GUI.OnCommand then GUI.OnCommand(termIn.Text); termIn.Text = "" end
 	end)
 
 	GUI.widget = main
@@ -588,7 +580,7 @@ end
 function GUI:setStatus(t, on)
 	if statusLabel then
 		statusLabel.Text = t
-		statusLabel.TextColor3 = on and Color3.fromRGB(100, 220, 100) or Color3.fromRGB(255, 100, 100)
+		statusLabel.TextColor3 = on and C.textDim or C.offline
 	end
 end
 
@@ -610,21 +602,21 @@ function GUI:setBranches(branches)
 
 		local item = Instance.new("TextButton")
 		item.Size = hasMenu and UDim2.new(1, -26, 1, 0) or UDim2.new(1, 0, 1, 0)
-		item.BackgroundColor3 = b.current and Color3.fromRGB(20, 55, 32) or Color3.fromRGB(42, 42, 46)
-		item.TextColor3 = b.current and Color3.fromRGB(180, 255, 200) or C.text
+		item.BackgroundColor3 = b.current and Color3.fromRGB(23, 54, 80) or Color3.fromRGB(40, 40, 43)
+		item.TextColor3 = b.current and C.textBright or C.text
 		item.Font = F.m
 		item.TextSize = 10
 		item.TextXAlignment = Enum.TextXAlignment.Left
 		item.AutoButtonColor = false
 		item.BorderSizePixel = 0
-		item.Text = (b.current and "✓ " or "  ") .. b.name
+		item.Text = (b.current and "✓  " or "    ") .. b.name
 		if b.created then
 			item.Text = item.Text .. "  " .. (b.created:sub(5, 10) or b.created)
 		end
 		rnd(item, 4)
 		item.Parent = row
 		if not b.current then
-			addHover(item, Color3.fromRGB(42, 42, 46), Color3.fromRGB(52, 52, 56))
+			addHover(item, Color3.fromRGB(40, 40, 43), Color3.fromRGB(50, 50, 53))
 		end
 		item.MouseButton1Click:Connect(function()
 			if GUI.OnBranchSelect then GUI.OnBranchSelect(b.name) end
@@ -634,7 +626,7 @@ function GUI:setBranches(branches)
 			local menu = Instance.new("TextButton")
 			menu.Size = UDim2.new(0, 22, 1, 0)
 			menu.Position = UDim2.new(1, -22, 0, 0)
-			menu.BackgroundColor3 = Color3.fromRGB(50, 50, 54)
+			menu.BackgroundColor3 = Color3.fromRGB(48, 48, 51)
 			menu.TextColor3 = C.textDim
 			menu.Font = F.h
 			menu.TextSize = 11
@@ -721,14 +713,18 @@ function GUI:setDiff(text)
 	local y = 4
 	for line in text:gmatch("[^\r\n]+") do
 		local lc = C.text
-		if line:sub(1,1) == "+" and line:sub(1,3) ~= "+++" then lc = Color3.fromRGB(100, 255, 100)
-		elseif line:sub(1,1) == "-" and line:sub(1,3) ~= "---" then lc = Color3.fromRGB(255, 100, 100)
-		elseif line:sub(1,2) == "@@" then lc = Color3.fromRGB(100, 180, 255) end
+		local bg = C.diffBg
+		if line:sub(1,1) == "+" and line:sub(1,3) ~= "+++" then lc = C.diffAddFg; bg = C.diffAddBg
+		elseif line:sub(1,1) == "-" and line:sub(1,3) ~= "---" then lc = C.diffDelFg; bg = C.diffDelBg
+		elseif line:sub(1,2) == "@@" then lc = C.diffHunkFg end
 		local l = Instance.new("TextLabel")
-		l.Size = UDim2.new(1, -8, 0, 14); l.Position = UDim2.new(0, 4, 0, y)
-		l.BackgroundTransparency = 1; l.TextColor3 = lc; l.Font = F.m; l.TextSize = 11
+		l.Size = UDim2.new(1, -4, 0, 15)
+		l.Position = UDim2.new(0, 2, 0, y)
+		l.BackgroundColor3 = bg
+		l.BorderSizePixel = 0
+		l.TextColor3 = lc; l.Font = F.m; l.TextSize = 11
 		l.TextXAlignment = Enum.TextXAlignment.Left; l.Text = line
-		l.BorderSizePixel = 0; l.Parent = diffView; y = y + 15
+		l.Parent = diffView; y = y + 16
 	end
 	diffView.CanvasSize = UDim2.new(0, 0, 0, y + 4)
 end
@@ -1039,7 +1035,11 @@ local function injectScripts(fileMap, uids, commitHash, classes, partes)
 				for seg in (fp:sub(#svcName + 2)):gmatch("[^/]+") do table.insert(parts, seg) end
 				local cur = svc
 				for i = 1, #parts - 1 do
+					-- Try direct child first, then search recursively
 					local f = cur:FindFirstChild(parts[i])
+					if not f then
+						f = findInTree(cur, parts[i])
+					end
 					if not f then
 						if svcName == "Workspace" then cur = nil; break end
 						f = Instance.new("Folder"); f.Name = parts[i]; f.Parent = cur
