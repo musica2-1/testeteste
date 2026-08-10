@@ -1168,7 +1168,8 @@ local function doCommit()
 			diffText = diffText .. "+ " .. key .. "\n"
 		end
 		GUI:setDiff(diffText)
-		log("Commit salvo localmente — use Push para enviar ao GitHub")
+		task.wait(0.5)
+		doPush()
 	else
 		log("✗ " .. (r.error or "commit failed"))
 	end
