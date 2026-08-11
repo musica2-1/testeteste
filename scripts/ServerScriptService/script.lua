@@ -897,7 +897,8 @@ end
 
 local function stagedList()
 	local t = {}
-	for k in pairs(state.staged) do
+	local current = scanScripts()
+	for k in pairs(current) do
 		if not isBuiltin(k) then table.insert(t, k) end
 	end
 	table.sort(t)
@@ -1105,6 +1106,21 @@ local function loadBranches()
 	end
 end
 
+-- Carrega place: branches + baseline do git + scan atual
+local function loadPlace()
+	loadBranches()
+	local r = RPC:send("read_branch", {place = state.place, branch = state.branch})
+	state.currentHash = (r.success and r.commit_hash) or ""
+	state.baseline = {}
+	if r.success and r.files then
+		for path, src in pairs(r.files) do
+			state.baseline[path] = {source = src}
+		end
+	end
+	state.staged = scanScripts()
+	refreshUI()
+end
+
 local function doPush()
 	state.place = GUI:getName()
 	log("Pushing " .. state.branch .. "...")
@@ -1168,8 +1184,7 @@ local function doCommit()
 			diffText = diffText .. "+ " .. key .. "\n"
 		end
 		GUI:setDiff(diffText)
-		task.wait(0.5)
-		doPush()
+		log("Commit salvo localmente — use Push para enviar ao GitHub")
 	else
 		log("✗ " .. (r.error or "commit failed"))
 	end
@@ -1921,7 +1936,7 @@ if state.online then
 								yesBtn.MouseButton1Click:Connect(function()
 									confirm:Destroy(); picker:Destroy()
 									state.place = p.name; GUI:setName(p.name)
-									loadBranches(); state.staged = scanScripts(); refreshUI()
+									loadPlace()
 									log("Loaded place: " .. p.name)
 								end)
 
@@ -1935,7 +1950,7 @@ if state.online then
 							else
 								picker:Destroy()
 								state.place = p.name; GUI:setName(p.name)
-								loadBranches(); state.staged = scanScripts(); refreshUI()
+								loadPlace()
 								log("Loaded place: " .. p.name)
 							end
 						end)
@@ -1955,9 +1970,7 @@ if state.online then
 		end
 	end
 	if not hasPicker then
-		loadBranches()
-		state.staged = scanScripts()
-		refreshUI()
+		loadPlace()
 	end
 	log("Comitter v1.5.0 ready")
 else
