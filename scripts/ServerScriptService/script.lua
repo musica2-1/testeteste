@@ -130,7 +130,7 @@ GUI.OnCherryPick = nil
 GUI.OnHistory = nil
 GUI.OnScanConfig = nil
 
-local termIn, branchList, statusLabel, fileList, diffView, nameBox, msgBox, newBranchForm
+local termIn, branchList, statusLabel, statusDot, fileList, diffView, nameBox, msgBox, newBranchForm
 local guiScreen
 
 -- ===== PALETA — neutra, um accent só (espelho do comitter_gui.py) =====
@@ -520,6 +520,7 @@ function GUI:init()
 	dot.BorderSizePixel = 0
 	rnd(dot, 4)
 	dot.Parent = sbar
+	statusDot = dot
 
 	statusLabel = Instance.new("TextLabel")
 	statusLabel.Size = UDim2.new(1, -40, 1, 0); statusLabel.Position = UDim2.new(0, 20, 0, 0)
@@ -535,6 +536,14 @@ function GUI:init()
 	minBtn.AutoButtonColor = false; minBtn.BorderSizePixel = 0
 	minBtn.Parent = sbar
 
+	-- Close button (✕) ao lado do minimize
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Size = UDim2.new(0, 16, 0, 14); closeBtn.Position = UDim2.new(1, -40, 0, 3)
+	closeBtn.BackgroundColor3 = C.header; closeBtn.TextColor3 = C.offline
+	closeBtn.Font = F.h; closeBtn.TextSize = 10; closeBtn.Text = "✕"
+	closeBtn.AutoButtonColor = false; closeBtn.BorderSizePixel = 0
+	closeBtn.Parent = sbar
+
 	local toggleBtn = Instance.new("TextButton")
 	toggleBtn.Size = UDim2.new(0, 32, 0, 24)
 	toggleBtn.Position = UDim2.new(1, -36, 0, 4)
@@ -549,6 +558,9 @@ function GUI:init()
 	toggleBtn.Parent = sg
 
 	minBtn.MouseButton1Click:Connect(function()
+		main.Visible = false; toggleBtn.Visible = true
+	end)
+	closeBtn.MouseButton1Click:Connect(function()
 		main.Visible = false; toggleBtn.Visible = true
 	end)
 	toggleBtn.MouseButton1Click:Connect(function()
@@ -581,6 +593,9 @@ function GUI:setStatus(t, on)
 	if statusLabel then
 		statusLabel.Text = t
 		statusLabel.TextColor3 = on and C.textDim or C.offline
+	end
+	if statusDot then
+		statusDot.BackgroundColor3 = on and C.online or C.offline
 	end
 end
 
@@ -754,7 +769,7 @@ local SCAN_SERVICES = {
 
 -- Serviços ativos (default: todos)
 local state = { online = false, branch = "main", place = "MeuJogo", branches = {}, staged = {}, config = {}, currentHash = "", dirty = false,
-	scanMask = {} }
+	scanMask = {}, lastPartes = {} }
 
 -- Inicializa scanMask com todos ativos
 for _, svc in ipairs(SCAN_SERVICES) do state.scanMask[svc.name] = true end; state.scanMask["Workspace (tracked)"] = false
@@ -897,7 +912,8 @@ end
 
 local function stagedList()
 	local t = {}
-	for k in pairs(state.staged) do
+	local current = scanScripts()
+	for k in pairs(current) do
 		if not isBuiltin(k) then table.insert(t, k) end
 	end
 	table.sort(t)
@@ -1105,6 +1121,25 @@ local function loadBranches()
 	end
 end
 
+-- Carrega place: branches + baseline do git + scan atual
+local function loadPlace()
+	loadBranches()
+	local r = RPC:send("read_branch", {place = state.place, branch = state.branch})
+	state.currentHash = (r.success and r.commit_hash) or ""
+	state.baseline = {}
+	state.lastPartes = {}
+	if r.success and r.files then
+		for path, src in pairs(r.files) do
+			state.baseline[path] = {source = src}
+		end
+	end
+	if r.success and r.partes then
+		state.lastPartes = r.partes
+	end
+	state.staged = scanScripts()
+	refreshUI()
+end
+
 local function doPush()
 	state.place = GUI:getName()
 	log("Pushing " .. state.branch .. "...")
@@ -1124,6 +1159,7 @@ local function doCommit()
 	local uids = {}
 	local classes = {}
 	local partes = {}
+	local scanWorkspace = state.scanMask["Workspace (tracked)"]
 	for key, info in pairs(all) do
 		if isBuiltin(key) then
 			-- skip Roblox built-in scripts
@@ -1150,7 +1186,19 @@ local function doCommit()
 	if gameId == "0" then gameId = tostring(game.PlaceId) end
 	log("Committing " .. state.place .. " [" .. state.branch .. "] " .. count .. " files")
 	local rpcPayload = {place = state.place, message = msg, files = payload, uids = uids, classes = classes, branch = state.branch, game_id = gameId}
-	if next(partes) then rpcPayload.partes = partes end
+	if scanWorkspace then
+		-- Scan de Workspace ligado: manda as partes escaneadas (pode ser vazio se
+		-- todas sumiram — aí clear_partes=true limpa de verdade).
+		rpcPayload.partes = partes
+		if next(partes) == nil then
+			rpcPayload.clear_partes = true
+		end
+	else
+		-- Scan desligado: preserva as partes do baseline (último estado conhecido).
+		if state.lastPartes and next(state.lastPartes) then
+			rpcPayload.partes = state.lastPartes
+		end
+	end
 	local r = RPC:send("commit", rpcPayload)
 	if r.success then
 		local short = r.hash and r.hash:sub(1, 7) or "?"
@@ -1159,17 +1207,22 @@ local function doCommit()
 		for key, info in pairs(all) do
 			if not isBuiltin(key) then setBaseHash(info.obj, r.hash) end
 		end
+		-- Guarda o estado das partes pra preservar em commits futuros com scan desligado
+		if next(partes) then state.lastPartes = partes end
 		state.currentHash = r.hash
 		state.dirty = false
 		state.staged = all
 		GUI:setFiles(stagedList())
 		local diffText = "Commit: " .. short .. "\n"
-		for key in pairs(payload) do
-			diffText = diffText .. "+ " .. key .. "\n"
+		if r.diff and r.diff ~= "" then
+			diffText = diffText .. r.diff
+		else
+			for key in pairs(payload) do
+				diffText = diffText .. "+ " .. key .. "\n"
+			end
 		end
 		GUI:setDiff(diffText)
-		task.wait(0.5)
-		doPush()
+		log("Commit salvo localmente — use Push para enviar ao GitHub")
 	else
 		log("✗ " .. (r.error or "commit failed"))
 	end
@@ -1693,10 +1746,14 @@ GUI.OnCherryPick = function()
 							local cur = svc
 							for i = 1, #parts - 1 do
 								local f = cur:FindFirstChild(parts[i])
-								if not f then f = Instance.new("Folder"); f.Name = parts[i]; f.Parent = cur end
+								if not f then f = findInTree(cur, parts[i]) end
+								if not f then
+									if svcName == "Workspace" then cur = nil; break end
+									f = Instance.new("Folder"); f.Name = parts[i]; f.Parent = cur
+								end
 								cur = f
 							end
-							if #parts > 0 then
+							if cur and #parts > 0 then
 								local sname = parts[#parts]:gsub("%.lua$", "")
 								local existing = cur:FindFirstChild(sname)
 								local classType = cp.class or "Script"
@@ -1712,7 +1769,11 @@ GUI.OnCherryPick = function()
 									existing:SetAttribute("Comitter_uid", cp.uid)
 								end
 								log("✓ Cherry-picked " .. p .. " from " .. branchName)
+							else
+								log("✗ Cherry-pick: path not found in Studio: " .. p)
 							end
+						else
+							log("✗ Cherry-pick: service not found: " .. svcName)
 						end
 					end
 					state.staged = scanScripts()
@@ -1771,7 +1832,7 @@ GUI.OnHistory = function()
 			applyBtn.MouseButton1Click:Connect(function()
 				local ack = RPC:send("apply_commit", {place = state.place, hash = c.hash, branch = histBranch})
 				if ack.success and ack.files then
-					local n = injectScripts(ack.files, {}, ack.hash, {}, ack.partes)
+					local n = injectScripts(ack.files, {}, ack.hash, ack.classes, ack.partes)
 					state.staged = scanScripts()
 					GUI:setFiles(stagedList())
 					log("Applied " .. n .. " scripts from " .. (c.shortHash or c.hash:sub(1,7)))
@@ -1921,7 +1982,7 @@ if state.online then
 								yesBtn.MouseButton1Click:Connect(function()
 									confirm:Destroy(); picker:Destroy()
 									state.place = p.name; GUI:setName(p.name)
-									loadBranches(); state.staged = scanScripts(); refreshUI()
+									loadPlace()
 									log("Loaded place: " .. p.name)
 								end)
 
@@ -1935,7 +1996,7 @@ if state.online then
 							else
 								picker:Destroy()
 								state.place = p.name; GUI:setName(p.name)
-								loadBranches(); state.staged = scanScripts(); refreshUI()
+								loadPlace()
 								log("Loaded place: " .. p.name)
 							end
 						end)
@@ -1955,9 +2016,7 @@ if state.online then
 		end
 	end
 	if not hasPicker then
-		loadBranches()
-		state.staged = scanScripts()
-		refreshUI()
+		loadPlace()
 	end
 	log("Comitter v1.5.0 ready")
 else
