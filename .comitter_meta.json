@@ -1,8 +1,9 @@
 {
   "classes": {},
-  "commit": "be7b09486bc9e24b07193aa7d44ce9ab57a6a87a",
+  "commit": "8892eb0581ba05e4be1a9d885c6556ddeffcdd8e",
   "meta_version": 1,
   "uids": {
+    "ServerScriptService/ModuleScript": "d6d5ce94-506a-446d-94b5-444ae1be019b",
     "ServerScriptService/bernardo": "4ccad7e5-61d2-415e-a4f2-cf2dc303234e",
     "ServerScriptService/maloquete": "0a13df40-d52f-49ba-a0e7-4431b00fd6e1",
     "ServerScriptService/script": "79a1b514-935c-4f33-bcbc-6633d2398dfc",
