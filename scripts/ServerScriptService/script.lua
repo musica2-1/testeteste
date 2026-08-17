@@ -624,7 +624,7 @@ function GUI:setBranches(branches)
 		item.TextXAlignment = Enum.TextXAlignment.Left
 		item.AutoButtonColor = false
 		item.BorderSizePixel = 0
-		item.Text = (b.current and "✓  " or "    ") .. b.name
+		item.Text = (b.current and "���  " or "    ") .. b.name
 		if b.created then
 			item.Text = item.Text .. "  " .. (b.created:sub(5, 10) or b.created)
 		end
