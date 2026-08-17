@@ -624,7 +624,7 @@ function GUI:setBranches(branches)
 		item.TextXAlignment = Enum.TextXAlignment.Left
 		item.AutoButtonColor = false
 		item.BorderSizePixel = 0
-		item.Text = (b.current and "���  " or "    ") .. b.name
+		item.Text = (b.current and "✓  " or "    ") .. b.name
 		if b.created then
 			item.Text = item.Text .. "  " .. (b.created:sub(5, 10) or b.created)
 		end
@@ -711,11 +711,17 @@ function GUI:setFiles(files)
 	if not fileList then return end
 	for _, c in ipairs(fileList:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
 	for _, f in ipairs(files or {}) do
+		local raw = tostring(f)
+		local status = raw:sub(1, 1)
+		local color = C.textDim
+		if status == "A" then color = C.statusA
+		elseif status == "M" then color = C.statusM
+		elseif status == "D" then color = C.statusD end
 		local item = Instance.new("TextButton")
 		item.Size = UDim2.new(1, -6, 0, 20)
-		item.BackgroundTransparency = 1; item.TextColor3 = C.textDim
+		item.BackgroundTransparency = 1; item.TextColor3 = color
 		item.Font = F.m; item.TextSize = 10
-		item.TextXAlignment = Enum.TextXAlignment.Left; item.Text = "  " .. f
+		item.TextXAlignment = Enum.TextXAlignment.Left; item.Text = "  " .. raw
 		item.AutoButtonColor = false; item.BorderSizePixel = 0; item.Parent = fileList
 	end
 	fileList.CanvasSize = UDim2.new(0, 0, 0, #files * 21 + 2)
@@ -911,13 +917,30 @@ local function isBuiltin(path)
 end
 
 local function stagedList()
+	-- Compara o scan atual com o baseline do branch (A = adicionado,
+	-- M = modificado, D = deletado) pra alimentar a lista de staged changes.
 	local t = {}
 	local current = scanScripts()
-	for k in pairs(current) do
-		if not isBuiltin(k) then table.insert(t, k) end
+	local baseline = state.baseline or {}
+	for k, info in pairs(current) do
+		if not isBuiltin(k) then
+			local old = baseline[k]
+			if not old then
+				t[k] = "A  " .. k
+			elseif old.source ~= info.source then
+				t[k] = "M  " .. k
+			end
+		end
 	end
-	table.sort(t)
-	return t
+	for k, old in pairs(baseline) do
+		if not isBuiltin(k) and not current[k] then
+			t[k] = "D  " .. k
+		end
+	end
+	local list = {}
+	for _, v in pairs(t) do table.insert(list, v) end
+	table.sort(list)
+	return list
 end
 
 local function refreshUI()
@@ -1212,6 +1235,11 @@ local function doCommit()
 		state.currentHash = r.hash
 		state.dirty = false
 		state.staged = all
+		-- Atualiza o baseline pro estado recém-commitado (evita falso M/A)
+		state.baseline = {}
+		for key, info in pairs(all) do
+			if not isBuiltin(key) then state.baseline[key] = {source = info.source} end
+		end
 		GUI:setFiles(stagedList())
 		local diffText = "Commit: " .. short .. "\n"
 		if r.diff and r.diff ~= "" then
