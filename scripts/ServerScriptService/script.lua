@@ -154,8 +154,9 @@ local C = {
 	diffDelBg = Color3.fromRGB(36, 20, 20),
 	diffHunkFg = Color3.fromRGB(108, 182, 242),
 	statusM = Color3.fromRGB(215, 186, 125),
-	statusA = Color3.fromRGB(137, 209, 133),
+	statusA = Color3.fromRGB(108, 182, 242),
 	statusD = Color3.fromRGB(241, 76, 76),
+	statusS = Color3.fromRGB(137, 209, 133),
 	statusQ = Color3.fromRGB(135, 135, 141),
 	online = Color3.fromRGB(108, 194, 108),
 	offline = Color3.fromRGB(224, 96, 96),
@@ -624,7 +625,7 @@ function GUI:setBranches(branches)
 		item.TextXAlignment = Enum.TextXAlignment.Left
 		item.AutoButtonColor = false
 		item.BorderSizePixel = 0
-		item.Text = (b.current and "���  " or "    ") .. b.name
+		item.Text = (b.current and "✓  " or "    ") .. b.name
 		if b.created then
 			item.Text = item.Text .. "  " .. (b.created:sub(5, 10) or b.created)
 		end
@@ -713,15 +714,18 @@ function GUI:setFiles(files)
 	for _, f in ipairs(files or {}) do
 		local raw = tostring(f)
 		local status = raw:sub(1, 1)
+		local path = raw:sub(5)
 		local color = C.textDim
 		if status == "A" then color = C.statusA
 		elseif status == "M" then color = C.statusM
-		elseif status == "D" then color = C.statusD end
+		elseif status == "D" then color = C.statusD
+		elseif status == "S" then color = C.statusS end
 		local item = Instance.new("TextButton")
 		item.Size = UDim2.new(1, -6, 0, 20)
 		item.BackgroundTransparency = 1; item.TextColor3 = color
 		item.Font = F.m; item.TextSize = 10
-		item.TextXAlignment = Enum.TextXAlignment.Left; item.Text = "  " .. raw
+		item.TextXAlignment = Enum.TextXAlignment.Left
+		item.Text = (status == "S" and "  " or "  " .. status .. " ") .. path
 		item.AutoButtonColor = false; item.BorderSizePixel = 0; item.Parent = fileList
 	end
 	fileList.CanvasSize = UDim2.new(0, 0, 0, #files * 21 + 2)
@@ -732,20 +736,55 @@ function GUI:setDiff(text)
 	for _, c in ipairs(diffView:GetChildren()) do if c:IsA("TextLabel") then c:Destroy() end end
 	if not text or text == "" then return end
 	local y = 4
-	for line in text:gmatch("[^\r\n]+") do
-		local lc = C.text
-		local bg = C.diffBg
-		if line:sub(1,1) == "+" and line:sub(1,3) ~= "+++" then lc = C.diffAddFg; bg = C.diffAddBg
-		elseif line:sub(1,1) == "-" and line:sub(1,3) ~= "---" then lc = C.diffDelFg; bg = C.diffDelBg
-		elseif line:sub(1,2) == "@@" then lc = C.diffHunkFg end
+	local function addLine(line, color, bg, size)
 		local l = Instance.new("TextLabel")
 		l.Size = UDim2.new(1, -4, 0, 15)
 		l.Position = UDim2.new(0, 2, 0, y)
-		l.BackgroundColor3 = bg
+		l.BackgroundColor3 = bg or C.diffBg
 		l.BorderSizePixel = 0
-		l.TextColor3 = lc; l.Font = F.m; l.TextSize = 11
+		l.TextColor3 = color or C.text; l.Font = F.m; l.TextSize = size or 11
 		l.TextXAlignment = Enum.TextXAlignment.Left; l.Text = line
 		l.Parent = diffView; y = y + 16
+	end
+	local currentFile = nil
+	local shownLines = 0
+	local hiddenLines = 0
+	for line in text:gmatch("[^\r\n]+") do
+		local fileHeader = line:match("^diff %-%-git a/(.+) b/")
+		if fileHeader then
+			if currentFile and hiddenLines > 0 then
+				addLine("  … (" .. hiddenLines .. " mais)", C.textDim, nil, 10)
+			end
+			currentFile = fileHeader
+			shownLines = 0
+			hiddenLines = 0
+			addLine("▸ " .. fileHeader, C.diffHunkFg, nil, 11)
+		elseif currentFile then
+			if line:sub(1, 5) == "index" or line:sub(1, 3) == "---" or line:sub(1, 3) == "+++" or line:sub(1, 2) == "@@" then
+				-- skip git headers
+			elseif line:sub(1, 1) == "+" then
+				if shownLines >= 20 then hiddenLines = hiddenLines + 1 else
+					addLine("  " .. line, C.diffAddFg, C.diffAddBg, 12)
+					shownLines = shownLines + 1
+				end
+			elseif line:sub(1, 1) == "-" then
+				if shownLines >= 20 then hiddenLines = hiddenLines + 1 else
+					addLine("  " .. line, C.diffDelFg, C.diffDelBg, 12)
+					shownLines = shownLines + 1
+				end
+			elseif line:sub(1, 1) == " " then
+				if shownLines >= 20 then hiddenLines = hiddenLines + 1 else
+					addLine("  " .. line, C.textDim, nil, 12)
+					shownLines = shownLines + 1
+				end
+			end
+		else
+			-- Linha fora de um diff (ex: "Commit: abc1234")
+			addLine(line, C.textBright, nil, 12)
+		end
+	end
+	if currentFile and hiddenLines > 0 then
+		addLine("  … (" .. hiddenLines .. " mais)", C.textDim, nil, 10)
 	end
 	diffView.CanvasSize = UDim2.new(0, 0, 0, y + 4)
 end
@@ -917,11 +956,11 @@ local function isBuiltin(path)
 end
 
 local function stagedList()
-	-- Compara o scan atual com o baseline do branch (A = adicionado,
-	-- M = modificado, D = deletado) pra alimentar a lista de staged changes.
-	local t = {}
+	-- Lista TODOS os scripts do scan com status: S (salvo), A (novo),
+	-- M (modificado), D (deletado — existia no baseline e sumiu do scan).
 	local current = scanScripts()
 	local baseline = state.baseline or {}
+	local t = {}
 	for k, info in pairs(current) do
 		if not isBuiltin(k) then
 			local old = baseline[k]
@@ -929,10 +968,12 @@ local function stagedList()
 				t[k] = "A  " .. k
 			elseif old.source ~= info.source then
 				t[k] = "M  " .. k
+			else
+				t[k] = "S  " .. k
 			end
 		end
 	end
-	for k, old in pairs(baseline) do
+	for k in pairs(baseline) do
 		if not isBuiltin(k) and not current[k] then
 			t[k] = "D  " .. k
 		end
