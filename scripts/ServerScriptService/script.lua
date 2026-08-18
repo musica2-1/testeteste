@@ -955,10 +955,10 @@ local function isBuiltin(path)
 	return name and BUILTIN_SCRIPTS[name]
 end
 
-local function stagedList()
+local function stagedList(preScanned)
 	-- Lista TODOS os scripts do scan com status: S (salvo), A (novo),
 	-- M (modificado), D (deletado — existia no baseline e sumiu do scan).
-	local current = scanScripts()
+	local current = preScanned or scanScripts()
 	local baseline = state.baseline or {}
 	local t = {}
 	for k, info in pairs(current) do
@@ -995,6 +995,34 @@ local function refreshUI()
 	end)
 	GUI:setBranches(sorted)
 	GUI:setFiles(stagedList())
+end
+
+-- Fingerprint da lista staged (status+path concatenados) pra comparar
+-- sem re-renderizar a UI quando nada mudou.
+local lastStagedFingerprint = ""
+
+local function autoRefresh()
+	while true do
+		task.wait(1)
+		if not state.online then continue end
+		-- Fingerprint inclui o source pra detectar edição de conteúdo
+		-- (status M não muda quando o script é editado de novo)
+		local ok, cur = pcall(scanScripts)
+		if not ok then continue end
+		local arr = {}
+		for k, info in pairs(cur) do
+			if not isBuiltin(k) then
+				table.insert(arr, k .. ":" .. info.source)
+			end
+		end
+		table.sort(arr)
+		local fp = table.concat(arr, "|")
+		if fp ~= lastStagedFingerprint then
+			lastStagedFingerprint = fp
+			state.staged = cur
+			GUI:setFiles(stagedList(cur))
+		end
+	end
 end
 
 local function log(msg, color)
@@ -1963,6 +1991,10 @@ GUI.loadConfig = function() return state.config end
 -- ===== INIT =====
 GUI:init()
 task.wait(0.3)
+
+-- Auto-refresh da staged list: re-scan de 1 em 1s e re-renderiza
+-- somente quando algo mudou (edição de Source, add/remove de script).
+task.spawn(autoRefresh)
 
 state.place = GUI:getName()
 state.online = RPC:ping()
