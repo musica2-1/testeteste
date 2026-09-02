@@ -1658,7 +1658,7 @@ local function handleCommand(cmd)
 		if not tgt then tgt = "main" end
 		log("Merging " .. src .. " → " .. tgt)
 		local r = RPC:send("merge", {place = state.place, source = src, target = tgt})
-		if r.success then log("��� Merged " .. src .. " → " .. tgt)
+		if r.success then log("✓ Merged " .. src .. " → " .. tgt)
 		else log("✗ Merge: " .. (r.error or "failed")) end
 	elseif cmd == "config" then
 		log("Click the gear button in the top bar")
