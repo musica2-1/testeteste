@@ -628,7 +628,7 @@ function GUI:setBranches(branches)
 			menu.MouseButton1Click:Connect(function()
 				if guiScreen then
 					local oldCtx = guiScreen:FindFirstChild("BranchCtx")
-					if oldCtx then oldCtx:Destroy() end
+					if oldCtx then oldCtx:Destroy() endaveankljcnasn lkcnsak c
 					local oldBlocker = guiScreen:FindFirstChild("CtxBlocker")
 					if oldBlocker then oldBlocker:Destroy() end
 				end
@@ -660,24 +660,9 @@ function GUI:setBranches(branches)
 				del.BackgroundColor3 = Color3.fromRGB(55, 22, 28)
 				del.TextColor3 = Color3.fromRGB(255, 140, 140)
 				del.Font = F.h; del.TextSize = 11; del.Text = "Delete"
-				del.AutoButtonColor = false; del.BorderSizePixel = 0; del.Parent = ctx
-				del.MouseButton1Click:Connect(function()
-					dismiss()
-					if GUI.OnBranchDelete then GUI.OnBranchDelete(b.name) end
-				end)
-
-				local ren = Instance.new("TextButton")
-				ren.Size = UDim2.new(1, 0, 0, 30); ren.Position = UDim2.new(0, 0, 0, 32)
-				ren.BackgroundColor3 = Color3.fromRGB(42, 42, 50)
+ = UDim2.new(0, 0, 0, 32)				ren.BackgroundColor3 = Color3.fromRGB(42, 42, 50)
 				ren.TextColor3 = C.text
-				ren.Font = F.h; ren.TextSize = 11; ren.Text = "Rename"
-				ren.AutoButtonColor = false; ren.BorderSizePixel = 0; ren.Parent = ctx
-				ren.MouseButton1Click:Connect(function()
-					dismiss()
-					if GUI.OnBranchRename then GUI.OnBranchRename(b.name) end
-				end)
-			end)
-		end
+			
 	end
 	branchList.CanvasSize = UDim2.new(0, 0, 0, #branches * 26 + 4)
 end
@@ -726,34 +711,6 @@ function GUI:getMsg() return msgBox and msgBox.Text or "save" end
 -- init.lua — Comitter v0.8.0
 -- Ordem CRÍTICA: helpers → callbacks → GUI:init()
 
-local state = { online = false, branch = "main", place = "MeuJogo", branches = {}, staged = {}, config = {}, currentHash = "", dirty = false }
-local ChangeHistoryService = game:GetService("ChangeHistoryService")
-
--- ===== SCANNER =====
-local function ensureUID(inst)
-	local uid = inst:GetAttribute("Comitter_uid")
-	if not uid then
-		uid = HttpService:GenerateGUID(false)
-		inst:SetAttribute("Comitter_uid", uid)
-	end
-	return uid
-end
-
-local function getBaseHash(inst)
-	return inst:GetAttribute("Comitter_base") or ""
-end
-
-local function setBaseHash(inst, hash)
-	inst:SetAttribute("Comitter_base", hash or "")
-end
-
-local function scriptNameFromFilename(name)
-	return name:gsub("%.lua$", ""):gsub("%.server$", ""):gsub("%.client$", "")
-end
-
--- Ignorar scripts padrão do Roblox para evitar poluição no diff/commit
-local IGNORED_PATHS = {
-	["StarterPlayer/StarterPlayerScripts/PlayerModule"] = true,
 	["StarterPlayer/StarterPlayerScripts/PlayerScriptsLoader"] = true,
 	-- Descomente se RbxCharacterSounds também aparecer:
 	-- ["StarterPlayer/StarterCharacterScripts/RbxCharacterSounds"] = true,
@@ -1870,37 +1827,6 @@ if state.online then
 			ht.BackgroundTransparency = 1; ht.TextColor3 = Color3.fromRGB(220, 220, 240); ht.Font = Enum.Font.GothamBold
 			ht.TextSize = 13; ht.Text = "Select Place"; ht.TextXAlignment = Enum.TextXAlignment.Left; ht.Parent = hd
 
-			-- Unlock toggle button
-			local unlockBtn = Instance.new("TextButton")
-			unlockBtn.Size = UDim2.new(0, 60, 0, 20); unlockBtn.Position = UDim2.new(1, -64, 0, 4)
-			unlockBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 52); unlockBtn.TextColor3 = Color3.fromRGB(180, 180, 200)
-			unlockBtn.Font = Enum.Font.GothamBold; unlockBtn.TextSize = 10; unlockBtn.Text = "🔓 Show all"
-			unlockBtn.BorderSizePixel = 0; unlockBtn.Parent = hd
-
-			local listFrame = Instance.new("ScrollingFrame")
-			listFrame.Size = UDim2.new(1, -8, 1, -32); listFrame.Position = UDim2.new(0, 4, 0, 30)
-			listFrame.BackgroundTransparency = 1; listFrame.ScrollBarThickness = 4
-			listFrame.CanvasSize = UDim2.new(0, 0, 0, 0); listFrame.Parent = picker
-			local listLayout = Instance.new("UIListLayout"); listLayout.Padding = UDim.new(0, 2); listLayout.Parent = listFrame
-
-			local function refreshList()
-				for _, c in ipairs(listFrame:GetChildren()) do if not c:IsA("UIListLayout") then c:Destroy() end end
-				local y = 0
-				for _, p in ipairs(plr.places) do
-					if not showAll and p.has_bind and not p.bound then
-						-- Skip unbound repos unless showAll is on
-					else
-						local btn = Instance.new("TextButton")
-						btn.Size = UDim2.new(1, -4, 0, 28); btn.BorderSizePixel = 0
-						btn.AutoButtonColor = false
-						if p.has_bind and not p.bound then
-							btn.BackgroundColor3 = Color3.fromRGB(55, 40, 30)
-							btn.TextColor3 = Color3.fromRGB(255, 180, 120)
-							btn.Text = "⚠ " .. p.name .. " (diferente)"
-						else
-							btn.BackgroundColor3 = Color3.fromRGB(45, 45, 52)
-							btn.TextColor3 = Color3.fromRGB(220, 220, 240)
-							btn.Text = (p.has_bind and "🔒 " or "  ") .. p.name
 						end
 						btn.Font = Enum.Font.GothamBold; btn.TextSize = 12
 						btn.TextXAlignment = Enum.TextXAlignment.Left; btn.Parent = listFrame
