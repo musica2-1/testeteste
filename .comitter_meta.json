@@ -1,11 +1,10 @@
 {
   "classes": {},
-  "commit": "b954a124788e1bbbafc5557777850d2accff60ac",
+  "commit": "e8a91a33bb21ebc6caa87cc0c9ad8206b36099a0",
   "meta_version": 1,
   "uids": {
-    "ServerScriptService/luicas": "78d12734-e141-49b9-81bb-4e698cd874cb",
-    "ServerScriptService/merg": "4e4664f8-fafb-45bd-b209-0b75398cbae0",
-    "ServerScriptService/script": "b44ce518-d0db-4803-9914-4159d7f30c89",
+    "ServerScriptService/ASDDASsa": "c8fd7e29-c17e-40a1-9643-031c1fc2a6f3",
+    "ServerScriptService/Lucas": "18f75ec1-1729-4ec7-a85d-21fcdcbae075",
     "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "4f8633f9-22e4-4129-9112-ed954ac98e63"
   }
 }
