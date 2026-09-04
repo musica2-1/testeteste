@@ -1,10 +1,9 @@
 {
   "classes": {},
-  "commit": "538364f0b7500619cf5a5e369afed9dbd9bd9d24",
+  "commit": "23eb3d2c58bed16e4b7e496163ca68ea924cb165",
   "meta_version": 1,
   "uids": {
     "ServerScriptService/ASDDASsa": "c8fd7e29-c17e-40a1-9643-031c1fc2a6f3",
-    "ServerScriptService/Lucas": "18f75ec1-1729-4ec7-a85d-21fcdcbae075",
     "StarterPlayer/StarterPlayerScripts/RbxCharacterSounds/AtomicBinding": "4f8633f9-22e4-4129-9112-ed954ac98e63"
   }
 }
